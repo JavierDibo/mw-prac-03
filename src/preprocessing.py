@@ -205,6 +205,51 @@ def filter_dataframe_by_extensions(df: pd.DataFrame, allowed_extensions: set[str
     
     return df_filtered
 
+def generate_all_extensions_report(df: pd.DataFrame, save_path: str | None = None) -> pd.DataFrame:
+    """
+    Genera un informe con el conteo de todas las extensiones únicas en la columna 'Extensión'.
+    Guarda el informe en un archivo CSV si se especifica la ruta.
+
+    Args:
+        df (pd.DataFrame): DataFrame de entrada con la columna 'Extensión' ya creada.
+        save_path (str | None): Ruta para guardar el informe CSV.
+
+    Returns:
+        pd.DataFrame: DataFrame con las columnas ['Extensión', 'Número de Repeticiones'].
+    """
+    print("\nGenerando informe de distribución de todas las extensiones...")
+    if 'Extensión' not in df.columns:
+        print("Error: La columna 'Extensión' no existe. No se puede generar el informe.")
+        return pd.DataFrame(columns=['Extensión', 'Número de Repeticiones'])
+
+    # Contar todas las ocurrencias, incluyendo "" para sin extensión.
+    # value_counts por defecto ordena de mayor a menor frecuencia.
+    extension_counts = df['Extensión'].value_counts(dropna=False).reset_index()
+    extension_counts.columns = ['Extensión', 'Número de Repeticiones']
+    
+    # Reemplazar NaN en la columna 'Extensión' por una cadena representativa si existiera
+    # (aunque _extract_extension_from_page está diseñado para devolver "")
+    extension_counts['Extensión'] = extension_counts['Extensión'].fillna('[NaN_Ext]')
+
+    print(f"Número total de tipos de extensiones únicas (incluyendo sin extensión y NaN si los hubiera): {len(extension_counts)}")
+    print("Primeras 20 extensiones por frecuencia (de todas las existentes):")
+    print(extension_counts.head(20))
+    if len(extension_counts) > 20:
+        print(f"(... y {len(extension_counts) - 20} más. Ver el archivo CSV para la lista completa.)")
+
+    if save_path:
+        try:
+            output_dir = os.path.dirname(save_path)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+                print(f"Directorio creado: {output_dir}")
+            extension_counts.to_csv(save_path, index=False)
+            print(f"Informe completo de distribución de extensiones guardado en: {save_path}")
+        except Exception as e:
+            print(f"Error al guardar el informe de distribución de extensiones: {e}")
+            
+    return extension_counts
+
 def identify_bots_by_robots_txt(df: pd.DataFrame, save_path_details: str | None = None, save_path_summary: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Identifica hosts que accedieron a '/robots.txt' como bots, añade una columna 'Is_Bot' al DataFrame,
@@ -365,6 +410,10 @@ if __name__ == '__main__':
 
         print("\nInformación del DataFrame (después de añadir 'Extensión'):")
         df_log.info()
+
+        # Nueva función para contar TODAS las extensiones
+        all_extensions_report_path = os.path.join(output_base_dir, 'all_extensions_distribution.csv')
+        generate_all_extensions_report(df_log, save_path=all_extensions_report_path)
 
         # 1.2.1. Obtener y mostrar las 10 extensiones más comunes
         top_extensions_csv_path = os.path.join(output_base_dir, 'top_10_extensions.csv')
