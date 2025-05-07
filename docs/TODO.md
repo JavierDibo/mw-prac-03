@@ -16,7 +16,7 @@
 
 ### 1.1. Carga del registro log y pre-procesamiento inicial
 *   [x] 1. Escribir un script en Python para cargar el fichero log (`datos/NASA_access_log_FULL.txt`) usando Pandas, parseando cada línea.
-*   [ ] 2. Asegurar la correcta división de los datos en columnas de un DataFrame de Pandas: Host remoto, Fecha/Hora, Método, Página, Protocolo, Resultado y Tamaño. (Nota: Los campos 'ident' y 'user' del formato de log original resultaron ser consistentemente '-' y no se incluyen como columnas). (Considerar usar expresiones regulares para el parseo si el formato es complejo).
+*   [x] 2. Asegurar la correcta división de los datos en columnas de un DataFrame de Pandas: Host remoto, Fecha/Hora, Método, Página, Protocolo, Resultado y Tamaño.
 *   [x] 3. Usar Pandas para convertir la columna Fecha/Hora a objetos datetime.
 *   [x] 4. Crear una nueva columna en el DataFrame (marca de tiempo) que represente el número de segundos transcurridos desde el 1 de Enero de 1995, usando las funcionalidades datetime de Pandas.
 
@@ -36,17 +36,17 @@
 *   [x] 3. Añadir una nueva columna 'UserID' al DataFrame de Pandas donde se incluiria la IP.
 
 ### 1.5. Identificación de sesiones
-*   [ ] 1. Implementar en Python (usando Pandas) la lógica para identificar sesiones: agrupar por 'UserID', ordenar por 'marca de tiempo', y aplicar un umbral de `timeout` de 30 minutos entre hits consecutivos para delimitar sesiones.
-*   [ ] 2. Añadir una nueva columna 'SessionID' al DataFrame de Pandas.
-*   [ ] 3. Mostrar una porción del DataFrame resultante, ordenado por 'SessionID' y 'marca de tiempo', como ejemplo en la memoria.
+*   [x] 1. Implementar en Python (usando Pandas) la lógica para identificar sesiones: agrupar por 'UserID', ordenar por 'marca de tiempo', y aplicar un umbral de `timeout` de 30 minutos entre hits consecutivos para delimitar sesiones.
+*   [x] 2. Añadir una nueva columna 'SessionID' al DataFrame de Pandas.
+*   [x] 3. Mostrar una porción del DataFrame resultante, ordenado por 'SessionID' y 'marca de tiempo', como ejemplo en la memoria. (Nota: El script `src/preprocessing.py` ahora imprime ejemplos relevantes).
 
 ### 1.6. Problemas al estimar duraciones
-*   [ ] 1. En la memoria, discutir la dificultad para estimar la duración de la visualización de la última página de una sesión.
-*   [ ] 2. En la memoria, sugerir una forma creativa de estimar la duración de la última página de una sesión.
+*   [x] 1. En la memoria, discutir la dificultad para estimar la duración de la visualización de la última página de una sesión.
+*   [x] 2. En la memoria, sugerir una forma creativa de estimar la duración de la última página de una sesión.
 
 ### 1.7. Pre-procesamiento adicional
-*   [ ] 1. (Si es necesario) Usar Pandas para identificar valores perdidos (NaN) en columnas críticas.
-*   [ ] 2. (Si se identificaron) Elegir una estrategia para su tratamiento (ej. imputación, eliminación) y aplicarla usando Pandas. Documentar la estrategia en la memoria.
+*   [x] 1. (Si es necesario) Usar Pandas para identificar valores perdidos (NaN) en columnas críticas. (Conclusión: Solo 'Tamaño' tiene NaNs, lo cual es esperado. Otras columnas críticas están completas).
+*   [x] 2. (Si se identificaron) Elegir una estrategia para su tratamiento (ej. imputación, eliminación) y aplicarla usando Pandas. Documentar la estrategia en la memoria. (Conclusión: NaNs en 'Tamaño' se mantienen, representan data faltante original. Se tratarán puntualmente si un análisis específico lo requiere).
 
 ## 2. Análisis exploratorio de datos del log (en `src/analysis.py`)
 *(Nota: Usar Matplotlib/Seaborn para todos los gráficos. Para histogramas y diagramas de dispersión, si es útil, omitir temporalmente valores extremos, indicando el umbral y la proporción de datos omitidos en la memoria).*

@@ -49,12 +49,13 @@ El proceso de carga y pre-procesamiento inicial del log de acceso de la NASA (`N
 
 ### 1.3. De-spidering
 
-Se implementó una estrategia para identificar bots y crawlers basada en el acceso al archivo `/robots.txt`. Los hosts que solicitaron este archivo fueron marcados como bots. El script `src/preprocessing.py` realiza lo siguiente:
-1.  Identifica los 'Host remoto' únicos que accedieron a `/robots.txt`.
-2.  Añade una nueva columna booleana `Is_Bot` al DataFrame principal, marcando `True` para todas las peticiones originadas por estos hosts identificados.
-3.  Genera dos tablas de resumen en formato CSV, guardadas en el directorio `output/tables/`:
-    *   `identified_bots_details.csv`: Contiene una lista de los 'Host remoto' identificados como bots y el número total de peticiones realizadas por cada uno.
-    *   `bot_proportions_summary.csv`: Muestra el número total de peticiones de los bots identificados frente a las peticiones no identificadas como de bots, junto con sus proporciones relativas respecto al total de peticiones en el DataFrame (filtrado por extensiones).
+Se implementó una estrategia para identificar bots y crawlers basada en el acceso al archivo `/robots.txt`. Los hosts que solicitaron este archivo fueron marcados como bots. Según la ejecución del script `src/preprocessing.py`:
+1.  Se identificaron **55 hosts únicos** que accedieron a `/robots.txt`.
+2.  Se añadió una nueva columna booleana `Is_Bot` al DataFrame principal.
+3.  Las peticiones de estos hosts identificados como bots constituyeron **8608 peticiones**, lo que representa aproximadamente el **0.76%** del total de peticiones en el DataFrame filtrado por extensiones.
+4.  Se generaron dos tablas de resumen en formato CSV, guardadas en el directorio `output/tables/`:
+    *   `identified_bots_details.csv`: Contiene una lista de los 'Host remoto' identificados como bots y el número total de peticiones realizadas por cada uno (ej. `e659229.boeing.com` con 2296 peticiones).
+    *   `bot_proportions_summary.csv`: Muestra el número total de peticiones de los bots identificados frente a las peticiones no identificadas como de bots, junto con sus proporciones relativas.
 
 *   **Explicación del De-spidering:**
     El proceso de "de-spidering" (identificación y eliminación de registros de bots y crawlers) es crucial para el análisis de logs web. Su objetivo principal es **centrarse en el comportamiento humano**, ya que los bots (ej. indexadores de motores de búsqueda) tienen patrones de acceso muy diferentes que pueden distorsionar métricas clave. Incluir tráfico de bots infla el número de visitas, altera las características de las sesiones (duración, páginas por sesión) y puede mostrar una popularidad irreal de ciertos contenidos. Al eliminar estas entradas automatizadas —en nuestro caso, identificando los hosts que accedieron a `/robots.txt` y luego filtrando sus peticiones— se **mejora la precisión de los análisis** y se **reduce el ruido y el volumen de datos**. Esto permite que los patrones de comportamiento de los usuarios reales emerjan más claramente, llevando a conclusiones más fiables sobre la interacción con el sitio web.
@@ -70,23 +71,72 @@ La estrategia para crear un 'UserID' se basará en el campo 'Host remoto'.
 
 ### 1.5. Identificación de sesiones
 
-[Describir el proceso de identificación de sesiones, incluyendo el uso de direcciones IP únicas y el umbral de timeout de 30 minutos. Explicar cómo se añadió el atributo con el identificador de sesión ('SessionID').]
+La identificación de sesiones se implementó en la función `identify_sessions` dentro de `src/preprocessing.py`. El proceso es el siguiente:
+1.  **Ordenamiento:** El DataFrame se ordena primero por la columna 'UserID' (creada en el paso 1.4.3) y luego por la columna 'marca de tiempo'.
+2.  **Cálculo de Diferencias de Tiempo:** Para cada usuario, se calcula la diferencia de tiempo (en segundos) entre cada petición consecutiva.
+3.  **Detección de Inicio de Sesión:** Una nueva sesión comienza si es la primera petición del 'UserID' o si la diferencia de tiempo con la petición anterior excede 30 minutos (1800 segundos).
+4.  **Asignación de 'SessionID':** Se genera un `SessionID` único concatenando el 'UserID' con un número de secuencia de sesión (e.g., `199.72.81.55_1`).
+
+El script `src/preprocessing.py` reportó la creación de **289,666 sesiones únicas identificadas**. También imprime ejemplos de estas sesiones.
 
 *   **Ejemplo de Tabla de Sesiones:**
-    *   `[Insertar aquí una porción del DataFrame resultante, ordenado por 'SessionID' y 'marca de tiempo', como ejemplo.]`
+    A continuación, se muestra un ejemplo de la salida del script `src/preprocessing.py`, ilustrando el formato de las sesiones. El DataFrame resultante está ordenado por `UserID` y `marca de tiempo`:
+
+    | UserID      | marca de tiempo | SessionID     | Página                                      |
+    |-------------|-----------------|---------------|---------------------------------------------|
+    | ***.novo.dk | 16546629.0      | ***.novo.dk_1 | /ksc.html                                   |
+    | ***.novo.dk | 16546668.0      | ***.novo.dk_1 | /shuttle/missions/missions.html             |
+    | ...         | ...             | ...           | ...                                         |
+    | ***.novo.dk | 19033368.0      | ***.novo.dk_2 | /shuttle/missions/sts-69/mission-sts-69.html|
+    | ...         | ...             | ...           | ...                                         |
+
 
 ### 1.6. Problemas al estimar duraciones
 
 *   **Discusión sobre la Última Página:**
-    *   `[Discutir aquí la dificultad para estimar la duración de la visualización de la última página de una sesión.]`
+    Estimar con precisión cuánto tiempo un usuario dedica a la última página de una sesión es un problema inherente y bien conocido en el análisis de logs web. La dificultad principal radica en que los logs del servidor registran cuándo se solicita una página, pero **no registran cuándo el usuario la abandona o cierra su navegador**.
+
+    Para todas las páginas intermedias de una sesión, podemos inferir el tiempo de visualización de una página `A` como la diferencia entre la marca de tiempo de la solicitud de la página `A` y la marca de tiempo de la solicitud de la siguiente página `B` (dentro de la misma sesión). Asumimos que el usuario estuvo viendo la página `A` hasta que solicitó la página `B`.
+
+    Sin embargo, para la última página de la sesión, no hay una "siguiente página solicitada" en el log que marque el final de su visualización. El usuario podría haber:
+    *   Leído la página durante unos segundos y luego cerrado la pestaña/navegador.
+    *   Leído la página detenidamente durante varios minutos.
+    *   Dejado la página abierta en una pestaña del navegador durante horas mientras realizaba otras actividades (online u offline).
+    *   Experimentado un problema de conexión o el cierre inesperado del navegador.
+
+    El log del servidor no puede distinguir entre estos escenarios. Por lo tanto, cualquier cálculo directo del tiempo de visualización para la última página basado únicamente en los timestamps del log es imposible. Esto significa que si simplemente omitimos la duración de la última página, la duración total de la sesión y el tiempo medio por página pueden ser subestimados, especialmente en sesiones cortas o en sitios donde la última página es crucial (por ejemplo, una página de confirmación, un artículo largo).
 
 *   **Sugerencia Creativa para Estimación:**
-    *   `[Sugerir aquí una forma creativa de estimar la duración de la última página de una sesión.]`
+    Para estimar la duración de la visualización de la última página de una sesión, una aproximación consiste en **utilizar el tiempo medio de visualización de páginas similares** dentro del mismo dataset. Los pasos serían:
+
+    1.  **Calcular Duraciones Conocidas y Medias Contextuales:**
+        *   Primero, para todas las páginas que *no* son la última de su sesión, se calcula su duración (tiempo hasta el siguiente hit en la misma sesión).
+        *   Luego, se calcula el tiempo medio de visualización para estas páginas, preferiblemente agrupando por un contexto relevante, como la extensión del archivo (ej. media para `.html`, media para `.pdf`, media para páginas sin extensión).
+
+    2.  **Aplicar Duración a la Última Página:**
+        *   A la última página de cada sesión se le asignaría la duración media precalculada correspondiente a su tipo o extensión. Por ejemplo, si la última página es un `.html`, se usaría la duración media de las páginas `.html` (no finales) calculada previamente.
+        *   Si para un tipo específico de última página no hay una media contextual disponible (ej. extensión poco común), se podría recurrir a una media global de todas las páginas no finales.
+
+    **Consideraciones y Limitaciones:**
+    *   Esta técnica asume que la última página se consume de forma similar a otras páginas del mismo tipo que no fueron las últimas, lo cual es una generalización.
+    *   No puede capturar la variabilidad individual de la visualización de la última página (abandono rápido vs. lectura prolongada).
+    *   A pesar de sus limitaciones, esta imputación basada en datos es más informada que ignorar la duración o asignar una constante arbitraria.
+
+    Una alternativa más simple sería asignar un valor constante predefinido (ej., 30 segundos), aunque esto carece de la adaptación a los datos que ofrece el método de la media contextual.
 
 ### 1.7. Pre-procesamiento adicional
 
-[Si se realizaron tareas adicionales de pre-procesamiento (ej. para identificar valores perdidos), describir la estrategia elegida para su tratamiento y cómo se aplicó.]
-*   `[Documentar aquí la estrategia de tratamiento de valores perdidos, si aplica.]`
+Se revisó el DataFrame final (`df_final_processed` en el script `src/preprocessing.py`, después de la eliminación de bots y la creación de UserID y SessionID) para identificar valores perdidos (NaN) en columnas críticas.
+
+1.  **Identificación de Valores Perdidos:**
+    *   Basándose en la salida del método `.info()` del DataFrame, la mayoría de las columnas críticas para el análisis de sesiones y comportamiento del usuario (como `UserID`, `Fecha/Hora`, `marca de tiempo`, `Página`, `Extensión`, `SessionID`) no presentan valores perdidos.
+    *   La columna `Tamaño` sí presenta valores NaN. Esto es un resultado esperado, ya que el script convierte las entradas "-" (guion) del log original en NaN cuando la columna `Tamaño` se convierte a tipo numérico. En la ejecución de ejemplo, se observaron aproximadamente 25,461 NaNs en esta columna sobre un total de 1,124,516 filas en el DataFrame procesado sin bots.
+
+2.  **Estrategia de Tratamiento:**
+    *   **Para la columna `Tamaño`:** Los valores NaN se consideran una representación válida de datos originalmente no disponibles (el servidor no reportó el tamaño del objeto). No se realizará una imputación general (como rellenar con 0 o la media) en esta etapa del preprocesamiento. Si análisis futuros específicos requieren un valor numérico en `Tamaño` para todos los registros (ej. cálculo de bytes totales promedio por sesión incluyendo estas peticiones), se abordará en ese momento (ej. tratando NaN como 0 para sumas, o excluyendo el registro si la media de tamaño es crítica y el NaN no puede ser significativamente interpretado).
+    *   **Para otras columnas críticas:** Dado que no se identificaron NaNs, no se requiere tratamiento adicional.
+
+Este enfoque asegura que no se introduce información artificial en el DataFrame y que la naturaleza de los datos originales se preserva en la medida de lo posible.
 
 ## 2. Análisis exploratorio de datos del log
 
@@ -203,15 +253,4 @@ La estrategia para crear un 'UserID' se basará en el campo 'Host remoto'.
 *   **Tabla 11: 10 Páginas de Acceso Único Más Visitadas**
     *   `[Insertar aquí la Tabla de las 10 páginas de acceso único (sesiones con una sola página vista) más visitadas.]`
 *   **Tabla 12: Distribución de Duración de Visitas en Minutos**
-    *   `[Insertar aquí la Tabla de la distribución de la duración de las visitas/sesiones en minutos (rangos: 0-1 min, 1-2 min, ...), por número de visitas/sesiones por rango.]`
-
-## 3. Conclusiones
-
-[Resumir las principales conclusiones del análisis realizado. Comentar los hallazgos más significativos, las limitaciones del estudio y posibles trabajos futuros.]
-
-## 4. Anexos (Opcional)
-
-[Si es necesario, incluir aquí cualquier material suplementario, como por ejemplo, fragmentos de código extensos si no se quieren poner en el cuerpo principal, o tablas muy grandes.]
-
----
-*Este es un esqueleto para la memoria. Deberás rellenar cada sección con tus análisis, tablas, gráficos y explicaciones, basándote en los resultados de tus scripts de Python y los requisitos de la práctica.* 
+    *   `
