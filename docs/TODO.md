@@ -10,7 +10,7 @@
 
 ## General Task:
 *   [x] Descargar el conjunto de datos de registros web del sitio NASA-HTTP
-*   [ ] Familiarizarse con el formato del archivo de log en `datos/NASA_access_log_FULL.txt`.
+*   [x] Familiarizarse con el formato del archivo de log en `datos/NASA_access_log_FULL.txt`.
 
 ## 1. Pre-procesamiento para análisis de logs (en `src/preprocessing.py` o similar)
 
@@ -23,7 +23,7 @@
 ### 1.2. Filtrado de datos
 *   [x] 1. Usar Pandas para extraer las extensiones de la columna 'Página', contar sus ocurrencias y construir una tabla (DataFrame) con las 10 extensiones más repetidas y su número de repeticiones.
 *   [x] 2. Usar Pandas para filtrar el DataFrame, manteniendo solo registros con las extensiones: .htm, .html, .pdf, .asp, .exe, .txt, .doc, .ppt, .xls, .xml, O aquellos donde la extensión de página esté en blanco (o no exista).
-*   [ ] 3. En la memoria, explicar por qué se deben realizar los pasos de filtrado anteriores.
+*   [x] 3. En la memoria, explicar por qué se deben realizar los pasos de filtrado anteriores.
 
 ### 1.3. De-spidering
 *   [x] 1. Usar Pandas para identificar registros de bots y crawlers (ej. analizando el campo 'Host remoto' o mediante heurísticas comunes, ya que el campo User-Agent no está disponible). Construir una tabla (DataFrame) con los bots/crawlers identificados y sus proporciones relativas.
@@ -52,11 +52,11 @@
 *(Nota: Usar Matplotlib/Seaborn para todos los gráficos. Para histogramas y diagramas de dispersión, si es útil, omitir temporalmente valores extremos, indicando el umbral y la proporción de datos omitidos en la memoria).*
 
 ### 2.1. Duración de la sesión
-*   [ ] 1. En la memoria, considerar sesiones de una única visita y discutir qué evidencia empírica existe sobre su duración.
-*   [ ] 2. Usar Pandas para filtrar sesiones que contienen más de una visita. Calcular la duración de estas sesiones (diferencia entre el timestamp del último y primer hit de la sesión).
-*   [ ] 3. Generar un histograma de la duración de la sesión (para sesiones con >1 visita) usando Matplotlib/Seaborn.
-*   [ ] 4. Calcular y presentar un resumen estadístico (media, desviación estándar, mediana, moda, mínimo y máximo) de la duración de la sesión usando Pandas (`.describe()` o cálculos individuales).
-*   [ ] 5. En la memoria, analizar si los resultados obtenidos subestiman o sobreestiman la verdadera duración de la sesión y explicar por qué.
+*   [x] 1. En la memoria, considerar sesiones de una única visita y discutir qué evidencia empírica existe sobre su duración.
+*   [x] 2. Usar Pandas para filtrar sesiones que contienen más de una visita. Calcular la duración de estas sesiones (diferencia entre el timestamp del último y primer hit de la sesión).
+*   [x] 3. Generar un histograma de la duración de la sesión (para sesiones con >1 visita) usando Matplotlib/Seaborn.
+*   [x] 4. Calcular y presentar un resumen estadístico (media, desviación estándar, mediana, moda, mínimo y máximo) de la duración de la sesión usando Pandas (`.describe()` o cálculos individuales).
+*   [x] 5. En la memoria, analizar si los resultados obtenidos subestiman o sobreestiman la verdadera duración de la sesión y explicar por qué.
 
 ### 2.2. Tiempo medio por página
 *   [ ] 1. Calcular el tiempo medio por página. Esto implicará calcular la duración de cada página vista (excepto la última de cada sesión de forma directa). Mostrar la fórmula/lógica implementada en Python en la memoria.

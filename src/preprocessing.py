@@ -468,6 +468,19 @@ if __name__ == '__main__':
         print("\nPrimeras filas del DataFrame con 'SessionID' (ordenado por UserID, marca de tiempo):")
         print(df_final_processed[['UserID', 'marca de tiempo', 'SessionID', 'Página']].head(10))
         
+        # Guardar el DataFrame procesado para ser usado en el análisis
+        output_processed_data_dir = os.path.join(project_root, 'output')
+        if not os.path.exists(output_processed_data_dir):
+            os.makedirs(output_processed_data_dir)
+            print(f"Directorio creado: {output_processed_data_dir}")
+        
+        processed_data_path = os.path.join(output_processed_data_dir, 'processed_log_data.parquet')
+        try:
+            df_final_processed.to_parquet(processed_data_path, index=False)
+            print(f"DataFrame procesado guardado en: {processed_data_path}")
+        except Exception as e:
+            print(f"Error al guardar el DataFrame procesado en Parquet: {e}")
+
         # Mostrar un ejemplo de varias sesiones para un mismo usuario si es posible
         if df_final_processed['SessionID'].nunique() < len(df_final_processed):
             # Buscar un UserID que tenga más de una sesión

@@ -148,7 +148,11 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
 ### 2.1. Duración de la sesión
 
 *   **Discusión sobre Sesiones de Única Visita:**
-    *   `[Considerar aquí sesiones que consten de una única visita. Discutir qué evidencia empírica se tiene respecto a la duración de esas sesiones.]`
+    *   Las sesiones que constan de una única visita (a menudo denominadas "rebotes" o "bounces") presentan un desafío particular para la estimación de su duración cuando se analizan exclusivamente logs de servidor. Desde la perspectiva del log del servidor, si solo hay un hit para una sesión, no hay un segundo hit para calcular una diferencia de tiempo. Por lo tanto, la duración *medida* de tal sesión es efectivamente cero.
+    *   Sin embargo, es evidente que el usuario pasó *algún* tiempo en esa única página. La evidencia empírica sobre la duración real de estas visitas proviene principalmente de:
+        1.  **Analíticas del Lado del Cliente:** Herramientas como Google Analytics, que ejecutan JavaScript en el navegador del usuario, pueden medir el tiempo en página de forma más precisa, incluso para visitas a una sola página. Lo hacen enviando "pings" o eventos al servidor de analíticas a intervalos regulares o cuando el usuario realiza acciones como hacer scroll o interactuar con elementos, o justo antes de que la página se cierre.
+        2.  **Estudios de Comportamiento del Usuario:** Investigaciones académicas y de la industria sobre usabilidad web y comportamiento del usuario a menudo analizan el tiempo en página. Estos estudios confirman la dificultad de medir la duración de los rebotes solo con logs de servidor y pueden ofrecer estimaciones promedio o modelos para imputar estas duraciones.
+        3.  **Imputación en Análisis de Logs:** En el análisis de logs de servidor, se debe reconocer esta limitación. Si es necesario asignar una duración a las sesiones de una sola visita para análisis posteriores (por ejemplo, para calcular una duración media general de la sesión), se podría imputar un valor. Esto podría ser una duración corta y fija (ej. unos pocos segundos, asumiendo que el usuario se fue rápidamente), el tiempo medio de carga de la página, o la duración media de visualización de esa página específica si se conoce de otras sesiones de múltiples visitas. No obstante, cualquier valor asignado es una estimación. Para este análisis, se reconocerá que la duración medida es cero, y se tratarán estas sesiones como un caso especial si es necesario.
 
 *   **Análisis de Duración de Sesiones (>1 visita):**
     *   Cálculo de la duración: [Describir brevemente cómo se calcularon las duraciones para sesiones con más de una visita.]
@@ -158,7 +162,10 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
         *   `[Insertar aquí el Resumen estadístico: media, desviación estándar, mediana, moda, mínimo y máximo de la duración de la sesión.]`
 
 *   **Análisis de Estimación (Subestimación/Sobreestimación):**
-    *   `[Analizar aquí si los resultados obtenidos subestiman o sobreestiman la verdadera duración de la sesión en todas las sesiones y explicar por qué.]`
+    *   Los resultados de duración de sesión obtenidos (calculados como la diferencia entre la marca de tiempo del último y el primer hit para sesiones con más de una visita) tienden a **subestimar la verdadera duración de la sesión**.
+    *   La razón principal es la inherente incapacidad de los logs de servidor para registrar el tiempo que un usuario pasa en la **última página de cualquier sesión**. El log registra cuándo se solicita la última página, pero no cuándo el usuario la abandona, cierra la pestaña o finaliza su interacción con ella. Nuestra actual medida de duración de sesión (`max(timestamp) - min(timestamp)`) cubre el tiempo desde el inicio de la primera página hasta el inicio de la última página solicitada en la sesión. El tiempo de visualización real de esa última página no está incluido.
+    *   Por lo tanto, cada duración de sesión calculada para sesiones de múltiples visitas es, en realidad, el tiempo total menos el tiempo desconocido que se pasó en la página final. Consecuentemente, todas las estadísticas derivadas de estas duraciones (como la media, mediana, etc.) también serán subestimaciones de las verdaderas métricas de compromiso temporal.
+    *   Además, aunque este análisis específico se centra en sesiones con más de una visita (donde al menos se puede calcular una duración parcial), es importante recordar que las sesiones de una única visita (rebotes) tienen una duración medida de cero en los logs del servidor, lo cual es una subestimación aún más pronunciada de cualquier tiempo que el usuario haya pasado en esa única página.
 
 ### 2.2. Tiempo medio por página
 
