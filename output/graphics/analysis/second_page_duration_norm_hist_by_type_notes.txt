@@ -1,1 +1,1 @@
-Para Segunda Página, se omitieron duraciones por encima del percentil 99 (1372.00s). Afectó a 1241 de 124227 (1.00%) vistas.
+Para Segunda Página, se omitieron duraciones por encima del percentil 99 (1353.00s). Afectó a 914 de 91457 (1.00%) vistas.

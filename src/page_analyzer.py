@@ -14,15 +14,10 @@ def _extract_extension(page_path: str) -> str:
     """
     if pd.isna(page_path):
         return ""
-    # Considerar que la 'página' puede ser solo '/' o similar sin un '.'
-    # También manejar casos donde la página es un directorio (termina en '/')
     if '.' in str(page_path) and not str(page_path).endswith('/'):
-        # Tomar la última parte después del último punto
         ext = str(page_path).split('.')[-1].lower()
-        # Filtrar posibles parámetros en la URL después de la extensión
         ext_cleaned = ext.split('?')[0].split('#')[0]
-        # Evitar que extensiones sean directorios completos si hay un error
-        if '/' in ext_cleaned: # Si la "extensión" todavía contiene un '/', es probable que no sea una extensión real.
+        if '/' in ext_cleaned:
             return ""
         return ext_cleaned
     return ""
@@ -35,20 +30,11 @@ def classify_page_type(df: pd.DataFrame) -> pd.DataFrame:
     print("\nClasificando tipos de página (navegación/contenido)...")
     if 'Página' not in df.columns:
         print("Error: La columna 'Página' no existe en el DataFrame.")
-        # Añadir columna vacía para evitar errores posteriores si la columna no existe
-        df['PageType'] = "desconocido" 
+        df['PageType'] = "desconocido"
         return df
-
-    # Asegurarse que la columna 'Página' sea de tipo string para evitar errores con .str
     df['extension'] = df['Página'].astype(str).apply(_extract_extension)
-    
-    # Clasificar basado en la presencia de una extensión
-    # Si la extensión es una cadena vacía, se considera 'navegación'
     df['PageType'] = np.where(df['extension'] == '', 'navegación', 'contenido')
-    
     print(f"Tipos de página clasificados. Distribución:\n{df['PageType'].value_counts(normalize=True)}")
-    # Eliminar la columna temporal 'extension' si no se necesita más
-    # df = df.drop(columns=['extension']) # Opcional: mantenerla si es útil para debugging
     return df
 
 def calculate_mean_time_per_page(df: pd.DataFrame) -> tuple[pd.Series, float | None]:
@@ -61,11 +47,9 @@ def calculate_mean_time_per_page(df: pd.DataFrame) -> tuple[pd.Series, float | N
     df_sorted['page_view_duration'] = df_sorted.groupby('SessionID')['marca de tiempo'].diff().shift(-1)
     all_page_view_durations = df_sorted['page_view_duration'].dropna()
     all_page_view_durations = all_page_view_durations[all_page_view_durations >= 0]
-
     if all_page_view_durations.empty:
         print("No se pudieron calcular duraciones de visualización de página.")
         return pd.Series(dtype='float64'), None
-
     mean_time_per_page = all_page_view_durations.mean()
     print(f"Se calcularon {len(all_page_view_durations)} duraciones de visualización de página individuales.")
     print(f"Tiempo medio por página (excluyendo la última de cada sesión): {mean_time_per_page:.2f} segundos.")
@@ -83,15 +67,13 @@ def plot_page_view_duration_histogram(
     if page_view_durations_seconds.empty:
         print("No hay duraciones de visualización de página para generar el histograma.")
         return
-
     durations_to_plot = page_view_durations_seconds.copy()
     original_count = len(durations_to_plot)
     description_for_memoria = ""
-
     if threshold_percentile is not None and 0 < threshold_percentile < 1:
         cap_value = durations_to_plot.quantile(threshold_percentile)
         if cap_value < 1 and (durations_to_plot > cap_value).any():
-            description_for_memoria = "No se aplicó filtrado de valores atípicos significativos para este histograma (el umbral era demasiado bajo)."
+            description_for_memoria = "No se aplicó filtrado de valores atípicos significativos para este histograma (el umbral era demasiado bajo o no había valores extremos)."
         else:
             durations_to_plot_filtered = durations_to_plot[durations_to_plot <= cap_value]
             omitted_count = original_count - len(durations_to_plot_filtered)
@@ -103,11 +85,10 @@ def plot_page_view_duration_histogram(
                 )
                 durations_to_plot = durations_to_plot_filtered
             else:
-                description_for_memoria = "No se omitieron valores atípicos para este histograma."
+                description_for_memoria = "No se omitieron valores atípicos para este histograma (todos los valores dentro del umbral)."
     else:
         description_for_memoria = "No se aplicó filtrado de valores atípicos para este histograma."
     print(description_for_memoria)
-
     plt.figure(figsize=(12, 7))
     sns.histplot(durations_to_plot, kde=True, bins='auto')
     title_note = description_for_memoria.split(". ")[0]
@@ -115,7 +96,6 @@ def plot_page_view_duration_histogram(
     plt.xlabel("Tiempo de Visualización de Página (segundos)")
     plt.ylabel("Número de Vistas de Página")
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-
     file_path = os.path.join(output_dir, filename)
     try:
         plt.savefig(file_path)
@@ -123,8 +103,7 @@ def plot_page_view_duration_histogram(
     except Exception as e:
         print(f"Error al guardar el histograma: {e}")
     plt.close()
-
-    memoria_notes_path = os.path.join(output_dir, "page_view_duration_histogram_notes.txt")
+    memoria_notes_path = os.path.join(output_dir, filename.replace('.png', '_notes.txt'))
     with open(memoria_notes_path, "w") as f:
         f.write(description_for_memoria)
     print(f"Notas para la memoria (histograma tiempo por página) guardadas en: {memoria_notes_path}")
@@ -140,25 +119,38 @@ def get_page_view_duration_stats(
     if page_view_durations_seconds.empty:
         print("No hay duraciones de visualización de página para calcular estadísticas.")
         return None
-
     print("\nCalculando estadísticas descriptivas para los tiempos de visualización de página...")
     stats_desc = page_view_durations_seconds.describe()
     modes = page_view_durations_seconds.mode()
     stats_df = stats_desc.to_frame().T
-
+    stats_df.columns = [
+        'Número de Vistas', 'Media (s)', 'Desv. Estándar (s)', 'Mínimo (s)', 
+        'Percentil 25 (s)', 'Mediana (s)', 'Percentil 75 (s)', 'Máximo (s)'
+    ]
     if not modes.empty:
-        stats_df['mode'] = ", ".join(map(str, modes.tolist()))
+        stats_df['Moda (s)'] = ", ".join(map(str, modes.tolist()))
     else:
-        stats_df['mode'] = 'N/A'
-
-    print("\nResumen Estadístico de Tiempos de Visualización de Página (segundos):")
-    print(stats_df.to_string())
-
+        stats_df['Moda (s)'] = 'N/A'
+    stats_df = stats_df[[
+        'Número de Vistas', 'Media (s)', 'Desv. Estándar (s)', 'Mínimo (s)', 
+        'Percentil 25 (s)', 'Mediana (s)', 'Percentil 75 (s)', 'Máximo (s)', 'Moda (s)'
+    ]]
+    table_representation = stats_df.to_markdown(index=False)
+    print(table_representation)
     file_path = os.path.join(output_dir, filename)
     try:
         with open(file_path, 'w') as f:
-            f.write("Resumen Estadístico de Tiempos de Visualización de Página (segundos):\n")
-            f.write(stats_df.to_string())
+            f.write("Métrica                   | Valor\n")
+            f.write("---------------------------|------------------\n")
+            f.write(f"Número de Vistas          | {stats_df['Número de Vistas'].iloc[0]}\n")
+            f.write(f"Media (s)                 | {stats_df['Media (s)'].iloc[0]:.2f}\n")
+            f.write(f"Desv. Estándar (s)      | {stats_df['Desv. Estándar (s)'].iloc[0]:.2f}\n")
+            f.write(f"Mínimo (s)                | {stats_df['Mínimo (s)'].iloc[0]:.2f}\n")
+            f.write(f"Percentil 25 (s)          | {stats_df['Percentil 25 (s)'].iloc[0]:.2f}\n")
+            f.write(f"Mediana (s)               | {stats_df['Mediana (s)'].iloc[0]:.2f}\n")
+            f.write(f"Percentil 75 (s)          | {stats_df['Percentil 75 (s)'].iloc[0]:.2f}\n")
+            f.write(f"Máximo (s)                | {stats_df['Máximo (s)'].iloc[0]:.2f}\n")
+            f.write(f"Moda (s)                  | {stats_df['Moda (s)'].iloc[0]}\n")
         print(f"Estadísticas de tiempo de visualización de página guardadas en: {file_path}")
     except Exception as e:
         print(f"Error al guardar las estadísticas de tiempo de visualización de página: {e}")
@@ -172,11 +164,9 @@ def calculate_first_second_page_durations(df: pd.DataFrame) -> tuple[pd.Series, 
     if 'SessionID' not in df.columns or 'marca de tiempo' not in df.columns:
         print("Error: Se requieren las columnas 'SessionID' y 'marca de tiempo'.")
         return pd.Series(dtype='float64'), pd.Series(dtype='float64')
-
     df_sorted = df.sort_values(by=['SessionID', 'marca de tiempo'])
     first_page_durs = []
     second_page_durs = []
-
     for session_id, group in df_sorted.groupby('SessionID'):
         timestamps = group['marca de tiempo'].tolist()
         if len(timestamps) >= 2:
@@ -187,12 +177,11 @@ def calculate_first_second_page_durations(df: pd.DataFrame) -> tuple[pd.Series, 
             duration_second_page = timestamps[2] - timestamps[1]
             if duration_second_page >= 0:
                 second_page_durs.append(duration_second_page)
-                
     s_first_page_durations = pd.Series(first_page_durs, dtype='float64')
-    s_second_page_durs = pd.Series(second_page_durs, dtype='float64')
-    print(f"Calculadas {len(s_first_page_durs)} duraciones para primeras páginas.")
-    print(f"Calculadas {len(s_second_page_durs)} duraciones para segundas páginas.")
-    return s_first_page_durs, s_second_page_durs
+    s_second_page_durations = pd.Series(second_page_durs, dtype='float64')
+    print(f"Calculadas {len(s_first_page_durations)} duraciones para primeras páginas.")
+    print(f"Calculadas {len(s_second_page_durations)} duraciones para segundas páginas.")
+    return s_first_page_durations, s_second_page_durations
 
 def plot_first_page_duration_histogram(
     first_page_durations_seconds: pd.Series,
@@ -206,15 +195,13 @@ def plot_first_page_duration_histogram(
     if first_page_durations_seconds.empty:
         print("No hay duraciones de primera página para generar el histograma.")
         return
-
     durations_to_plot = first_page_durations_seconds.copy()
     original_count = len(durations_to_plot)
     description_for_memoria = ""
-
     if threshold_percentile is not None and 0 < threshold_percentile < 1:
         cap_value = durations_to_plot.quantile(threshold_percentile)
         if cap_value < 1 and (durations_to_plot > cap_value).any():
-            description_for_memoria = "No se aplicó filtrado de valores atípicos significativos (umbral bajo)."
+            description_for_memoria = "No se aplicó filtrado de valores atípicos significativos (umbral bajo o sin extremos)."
         else:
             durations_to_plot_filtered = durations_to_plot[durations_to_plot <= cap_value]
             omitted_count = original_count - len(durations_to_plot_filtered)
@@ -226,11 +213,10 @@ def plot_first_page_duration_histogram(
                 )
                 durations_to_plot = durations_to_plot_filtered
             else:
-                description_for_memoria = "No se omitieron valores atípicos para este histograma."
+                description_for_memoria = "No se omitieron valores atípicos para este histograma (todos dentro del umbral)."
     else:
         description_for_memoria = "No se aplicó filtrado de valores atípicos para este histograma."
     print(description_for_memoria)
-
     plt.figure(figsize=(12, 7))
     sns.histplot(durations_to_plot, kde=True, bins='auto')
     title_note = description_for_memoria.split(". ")[0]
@@ -238,7 +224,6 @@ def plot_first_page_duration_histogram(
     plt.xlabel("Duración de la Primera Página (segundos)")
     plt.ylabel("Número de Sesiones")
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-
     file_path = os.path.join(output_dir, filename)
     try:
         plt.savefig(file_path)
@@ -246,8 +231,7 @@ def plot_first_page_duration_histogram(
     except Exception as e:
         print(f"Error al guardar el histograma: {e}")
     plt.close()
-
-    memoria_notes_path = os.path.join(output_dir, "first_page_duration_histogram_notes.txt")
+    memoria_notes_path = os.path.join(output_dir, filename.replace('.png', '_notes.txt'))
     with open(memoria_notes_path, "w") as f:
         f.write(description_for_memoria)
     print(f"Notas para la memoria (histograma duración primera página) guardadas en: {memoria_notes_path}")
@@ -259,116 +243,99 @@ def get_first_second_page_duration_stats(
     filename: str = "first_second_page_duration_stats.txt"
 ) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     """
-    Calcula y guarda estadísticas descriptivas para las duraciones de la primera y segunda página.
+    Calcula y guarda estadísticas para las duraciones de la primera y segunda página.
     """
-    stats_dfs = []
+    print("\nCalculando estadísticas para las duraciones de la primera y segunda página...")
+    output_text_content = ""
+    results_dfs = []
     series_to_process = [
         ("Primera Página", first_page_durations),
         ("Segunda Página", second_page_durations)
     ]
-    output_text_content = ""
-
     for name, series_data in series_to_process:
-        print(f"\nCalculando estadísticas para Duración de la {name}...")
         if series_data.empty:
-            print(f"No hay datos de duración para la {name}.")
-            stats_dfs.append(None)
-            output_text_content += f"Resumen Estadístico para Duración de la {name} (segundos):\nNo hay datos disponibles.\n\n"
+            print(f"No hay datos para la {name.lower()}.")
+            output_text_content += f"\n{name}: No hay datos suficientes para calcular estadísticas.\n"
+            results_dfs.append(None)
             continue
-        
         stats_desc = series_data.describe()
         modes = series_data.mode()
         stats_df = stats_desc.to_frame().T
-
+        stats_df.columns = [
+            'Número de Páginas', 'Media (s)', 'Desv. Estándar (s)', 'Mínimo (s)', 
+            'Percentil 25 (s)', 'Mediana (s)', 'Percentil 75 (s)', 'Máximo (s)'
+        ]
         if not modes.empty:
-            stats_df['mode'] = ", ".join(map(str, modes.tolist()))
+            stats_df['Moda (s)'] = ", ".join(map(str, modes.tolist()))
         else:
-            stats_df['mode'] = 'N/A'
-        
-        stats_df.index = [f"Duración {name}"]
-        print(stats_df.to_string())
-        stats_dfs.append(stats_df)
-        output_text_content += f"Resumen Estadístico para Duración de la {name} (segundos):\n{stats_df.to_string()}\n\n"
-
+            stats_df['Moda (s)'] = 'N/A'
+        stats_df = stats_df[[
+            'Número de Páginas', 'Media (s)', 'Desv. Estándar (s)', 'Mínimo (s)', 
+            'Percentil 25 (s)', 'Mediana (s)', 'Percentil 75 (s)', 'Máximo (s)', 'Moda (s)'
+        ]]
+        results_dfs.append(stats_df)
+        output_text_content += f"\n{name}:\n"
+        output_text_content += stats_df.to_markdown(index=False) + "\n"
+    print(output_text_content)
     file_path = os.path.join(output_dir, filename)
     try:
         with open(file_path, 'w') as f:
-            f.write(output_text_content.strip())
+            f.write("Estadísticas de Duración de Primera y Segunda Página:\n")
+            f.write(output_text_content)
         print(f"Estadísticas de duración de primera/segunda página guardadas en: {file_path}")
     except Exception as e:
         print(f"Error al guardar las estadísticas: {e}")
-        
-    return tuple(stats_dfs)
+    return tuple(results_dfs)
 
-def get_first_second_page_durations_by_type(df: pd.DataFrame, output_dir: str, filename: str = "first_second_page_duration_by_type_stats.txt") -> tuple[pd.Series | None, pd.Series | None]:
+def get_first_second_page_durations_by_type(df: pd.DataFrame, output_dir: str, filename: str = "first_second_page_duration_by_type_stats.txt") -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     """
-    Calcula la duración de la visita a la primera y segunda página de cada sesión,
-    luego agrupa por 'PageType' y calcula la media de estas duraciones.
+    Calcula la duración media de la primera y segunda página, separada por tipo de página (navegación/contenido).
     Guarda las estadísticas en un archivo.
+    Devuelve DataFrames con las estadísticas (uno para la primera página, otro para la segunda).
     """
-    print("\nCalculando duraciones medias de primera y segunda página por tipo (navegación/contenido)...")
-    if not all(col in df.columns for col in ['SessionID', 'marca de tiempo', 'PageType']):
-        print("Error: Se requieren las columnas 'SessionID', 'marca de tiempo' y 'PageType'.")
+    print("\nCalculando duración media de primera/segunda página por tipo (navegación/contenido)...")
+    if 'PageType' not in df.columns:
+        print("Error: La columna 'PageType' no existe. Ejecute classify_page_type primero.")
         return None, None
-
+    if df['PageType'].isnull().all():
+        print("Error: La columna 'PageType' está vacía o solo contiene NaNs.")
+        return None, None
     df_sorted = df.sort_values(by=['SessionID', 'marca de tiempo'])
-    
-    first_page_data = [] # Store tuples of (duration, page_type)
-    second_page_data = [] # Store tuples of (duration, page_type)
-
-    for session_id, group in df_sorted.groupby('SessionID'):
-        if len(group) >= 2:
-            # Primera página
-            duration_first_page = group['marca de tiempo'].iloc[1] - group['marca de tiempo'].iloc[0]
-            page_type_first = group['PageType'].iloc[0] # Tipo de la página cuya duración se mide
-            if duration_first_page >= 0:
-                first_page_data.append((duration_first_page, page_type_first))
-        
-        if len(group) >= 3:
-            # Segunda página
-            duration_second_page = group['marca de tiempo'].iloc[2] - group['marca de tiempo'].iloc[1]
-            page_type_second = group['PageType'].iloc[1] # Tipo de la página cuya duración se mide
-            if duration_second_page >= 0:
-                second_page_data.append((duration_second_page, page_type_second))
-
-    # Convertir a DataFrames para facilitar el groupby y mean
-    df_first_page_durs = pd.DataFrame(first_page_data, columns=['duration', 'PageType'])
-    df_second_page_durs = pd.DataFrame(second_page_data, columns=['duration', 'PageType'])
-
-    mean_duration_first_page_by_type = None
-    mean_duration_second_page_by_type = None
-    output_text_content = "Resultados del Análisis de Duración Media de Primera y Segunda Página por Tipo:\n\n"
-
-    if not df_first_page_durs.empty:
-        mean_duration_first_page_by_type = df_first_page_durs.groupby('PageType')['duration'].mean().sort_index()
-        print("\nDuración media de la PRIMERA página por tipo:")
-        print(mean_duration_first_page_by_type.to_string())
-        output_text_content += "Duración media de la PRIMERA página por tipo (segundos):\n"
-        output_text_content += mean_duration_first_page_by_type.to_string() + "\n\n"
-    else:
-        print("\nNo se pudieron calcular duraciones para la primera página para agrupar por tipo.")
-        output_text_content += "No hay datos suficientes para la duración media de la PRIMERA página por tipo.\n\n"
-
-    if not df_second_page_durs.empty:
-        mean_duration_second_page_by_type = df_second_page_durs.groupby('PageType')['duration'].mean().sort_index()
-        print("\nDuración media de la SEGUNDA página por tipo:")
-        print(mean_duration_second_page_by_type.to_string())
-        output_text_content += "Duración media de la SEGUNDA página por tipo (segundos):\n"
-        output_text_content += mean_duration_second_page_by_type.to_string() + "\n\n"
-    else:
-        print("\nNo se pudieron calcular duraciones para la segunda página para agrupar por tipo.")
-        output_text_content += "No hay datos suficientes para la duración media de la SEGUNDA página por tipo.\n\n"
-    
-    # Guardar los resultados en un archivo
+    df_sorted['next_timestamp_in_session'] = df_sorted.groupby('SessionID')['marca de tiempo'].shift(-1)
+    df_sorted['first_page_duration'] = df_sorted['next_timestamp_in_session'] - df_sorted['marca de tiempo']
+    first_pages_df = df_sorted.groupby('SessionID').first().reset_index()
+    first_pages_df = first_pages_df[first_pages_df['first_page_duration'] >= 0]
+    df_sorted['next_next_timestamp_in_session'] = df_sorted.groupby('SessionID')['marca de tiempo'].shift(-2)
+    df_sorted['second_page_duration'] = df_sorted['next_next_timestamp_in_session'] - df_sorted['next_timestamp_in_session']
+    second_pages_df = df_sorted.groupby('SessionID').nth(1).reset_index()
+    second_pages_df = second_pages_df[second_pages_df['second_page_duration'] >= 0]
+    stats_output = ""
+    all_stats_dfs = {}
+    for page_num_str, page_df_data in [("Primera Página", first_pages_df), ("Segunda Página", second_pages_df)]:
+        if page_df_data.empty:
+            stats_output += f"\n{page_num_str}: No hay datos suficientes.\n"
+            all_stats_dfs[page_num_str] = None
+            continue
+        duration_col = 'first_page_duration' if page_num_str == "Primera Página" else 'second_page_duration'
+        if duration_col not in page_df_data.columns:
+             stats_output += f"\n{page_num_str}: Columna de duración '{duration_col}' no encontrada.\n"
+             all_stats_dfs[page_num_str] = None
+             continue
+        avg_duration_by_type = page_df_data.groupby('PageType')[duration_col].mean().reset_index()
+        avg_duration_by_type.columns = ['PageType', 'MeanDurationSeconds']
+        stats_output += f"\n{page_num_str} Visitada:\n"
+        stats_output += avg_duration_by_type.to_markdown(index=False) + "\n"
+        all_stats_dfs[page_num_str] = avg_duration_by_type
+    print(stats_output)
     file_path = os.path.join(output_dir, filename)
     try:
         with open(file_path, 'w') as f:
-            f.write(output_text_content)
-        print(f"Estadísticas de duración de primera/segunda página por tipo guardadas en: {file_path}")
+            f.write("Duración Media de Primera y Segunda Página por Tipo (Navegación vs. Contenido):\n")
+            f.write(stats_output)
+        print(f"Estadísticas de duración por tipo guardadas en: {file_path}")
     except Exception as e:
-        print(f"Error al guardar las estadísticas de duración por tipo: {e}")
-
-    return mean_duration_first_page_by_type, mean_duration_second_page_by_type
+        print(f"Error al guardar las estadísticas por tipo: {e}")
+    return all_stats_dfs.get("Primera Página"), all_stats_dfs.get("Segunda Página")
 
 def _plot_normalized_duration_histogram_by_type(
     durations_df: pd.DataFrame, 
@@ -378,107 +345,75 @@ def _plot_normalized_duration_histogram_by_type(
     threshold_percentile: float | None = 0.99
 ):
     """
-    Helper function to plot a normalized histogram for page durations by PageType.
-    Handles outlier capping and saves notes for the report.
+    Helper para generar histogramas normalizados de duración por tipo de página.
+    durations_df debe tener columnas 'duration' y 'PageType'.
     """
     if durations_df.empty or 'duration' not in durations_df.columns or 'PageType' not in durations_df.columns:
-        print(f"No hay datos de duración para {page_description} para generar histograma por tipo.")
+        print(f"Datos insuficientes o incorrectos para el histograma de {page_description.lower()} por tipo.")
         return
-
     data_to_plot = durations_df.copy()
-    # Ensure durations are non-negative before any processing
-    data_to_plot = data_to_plot[data_to_plot['duration'] >= 0]
-    if data_to_plot.empty:
-        print(f"No hay datos de duración no negativos para {page_description}.")
-        return
-        
     original_count = len(data_to_plot)
-    description_for_memoria_parts = []
-    cap_value_for_title = None
-
+    notes_list = []
     if threshold_percentile is not None and 0 < threshold_percentile < 1:
-        positive_durations = data_to_plot['duration'] # Already filtered for >= 0
-        if not positive_durations.empty:
-            cap_value = positive_durations.quantile(threshold_percentile)
-            cap_value_for_title = cap_value
-            
-            # Only apply cap if it makes sense (e.g., cap_value is not extremely small and there are values above it)
-            meaningful_cap = cap_value >= 1 or (positive_durations > cap_value).any()
-            
-            if meaningful_cap:
-                data_to_plot_filtered = data_to_plot[data_to_plot['duration'] <= cap_value]
-                omitted_count = original_count - len(data_to_plot_filtered)
-                if omitted_count > 0:
-                    description_for_memoria_parts.append(
-                        f"Para {page_description}, se omitieron duraciones por encima del percentil "
-                        f"{threshold_percentile*100:.0f} ({cap_value:.2f}s). "
-                        f"Afectó a {omitted_count} de {original_count} ({omitted_count/original_count*100:.2f}%) vistas."
-                    )
-                    data_to_plot = data_to_plot_filtered
-                else:
-                    description_for_memoria_parts.append(f"No se omitieron valores atípicos para {page_description} (umbral {cap_value:.2f}s). Todas las duraciones están por debajo o igual al umbral.")
+        cap_value = data_to_plot['duration'].quantile(threshold_percentile)
+        if cap_value < 1 and (data_to_plot['duration'] > cap_value).any():
+             notes_list.append(f"Para {page_description}, no se aplicó filtrado de valores atípicos significativos (umbral {cap_value:.2f}s bajo o sin extremos).")
+        else:
+            data_to_plot_filtered = data_to_plot[data_to_plot['duration'] <= cap_value]
+            omitted_count = original_count - len(data_to_plot_filtered)
+            if omitted_count > 0:
+                notes_list.append(
+                    f"Para {page_description}, se omitieron duraciones por encima del percentil "
+                    f"{threshold_percentile*100:.0f} ({cap_value:.2f}s). Afectó a {omitted_count} de {original_count} ({omitted_count/original_count*100:.2f}%) vistas."
+                )
+                data_to_plot = data_to_plot_filtered
             else:
-                description_for_memoria_parts.append(f"No se aplicó filtrado de valores atípicos significativos para {page_description} (umbral {cap_value:.2f}s demasiado bajo o sin datos por encima para filtrar). Todas las duraciones se mantienen.")
-        else:
-             description_for_memoria_parts.append(f"No hay duraciones positivas para {page_description} para aplicar capping.")
+                notes_list.append(f"Para {page_description}, no se omitieron valores atípicos (todos dentro del umbral {cap_value:.2f}s).")
     else:
-        description_for_memoria_parts.append(f"No se aplicó capping de valores atípicos para {page_description}.")
-
-    full_description = " ".join(description_for_memoria_parts)
-    print(f"Notas para {filename}: {full_description}")
-
-    if data_to_plot.empty or data_to_plot['PageType'].nunique() == 0:
-        print(f"No hay datos suficientes para {page_description} después del filtrado para generar histograma por tipo.")
-        # Still save notes if description was generated
-        if full_description:
-            memoria_notes_path = os.path.join(output_dir, f"{filename.split('.')[0]}_notes.txt")
-            with open(memoria_notes_path, "w") as f_notes:
-                f_notes.write(full_description)
-            print(f"Notas para la memoria ({filename}) guardadas en: {memoria_notes_path}")
+        notes_list.append(f"Para {page_description}, no se aplicó filtrado de valores atípicos.")
+    print("\n".join(notes_list))
+    if data_to_plot.empty:
+        print(f"No quedan datos para graficar para {page_description.lower()} después del filtrado.")
         return
-
-    plt.figure(figsize=(14, 8))
-    # Let Seaborn handle legend creation with legend=True (default when hue is used)
-    sns.histplot(data=data_to_plot, x='duration', hue='PageType', stat='density', 
-                 common_norm=False, kde=True, element='step', bins='auto', legend=True)
-    
-    ax = plt.gca() # Get current axes to modify legend if needed
-
-    title_cap_note = f"(valores > {cap_value_for_title:.2f}s omitidos)" if cap_value_for_title is not None and 'se omitieron duraciones por encima del percentil' in full_description else "(sin capping significativo o no aplicado)"
-    plt.title(f'Histograma Normalizado de Duración de {page_description} por Tipo\n{title_cap_note}')
-    plt.xlabel(f"Duración de {page_description} (segundos)")
+    plt.figure(figsize=(12, 7))
+    page_types_present = data_to_plot['PageType'].unique()
+    if 'navegación' in page_types_present:
+        sns.histplot(
+            data_to_plot[data_to_plot['PageType'] == 'navegación'], 
+            x='duration', 
+            kde=True, 
+            stat="density", 
+            label='Navegación', 
+            color='skyblue',
+            bins='auto'
+        )
+    if 'contenido' in page_types_present:
+        sns.histplot(
+            data_to_plot[data_to_plot['PageType'] == 'contenido'], 
+            x='duration', 
+            kde=True, 
+            stat="density", 
+            label='Contenido', 
+            color='orange',
+            bins='auto'
+        )
+    title_note = notes_list[0].split(". Afectó")[0] if notes_list else ""
+    plt.title(f'Histograma Normalizado de Duración de {page_description}\nPor Tipo de Página (Navegación vs. Contenido)\n{title_note}')
+    plt.xlabel("Duración de la Página (segundos)")
     plt.ylabel("Densidad")
+    plt.legend()
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-    
-    # Attempt to set legend title if Seaborn created a legend
-    legend_obj = ax.get_legend()
-    if legend_obj is not None:
-        if data_to_plot['PageType'].nunique() > 1:
-            legend_obj.set_title('Tipo de Página')
-        else:
-            # If only one category, Seaborn might not draw a legend, or we can hide it
-            legend_obj.set_visible(False)
-            print(f"Solo un tipo de página ({data_to_plot['PageType'].unique()[0]}) presente para {page_description}, leyenda de tipo omitida.")
-    elif data_to_plot['PageType'].nunique() > 1:
-        # This case should ideally not be reached if sns.histplot legend=True works as expected for multiple hues
-        print(f"Advertencia: No se encontró leyenda para {page_description} a pesar de múltiples tipos de página.")
-
     file_path = os.path.join(output_dir, filename)
     try:
         plt.savefig(file_path)
-        print(f"Histograma normalizado de {page_description} por tipo guardado en: {file_path}")
+        print(f"Histograma normalizado de duración ({page_description.lower()}) por tipo guardado en: {file_path}")
     except Exception as e:
-        print(f"Error al guardar el histograma de {page_description}: {e}")
+        print(f"Error al guardar el histograma: {e}")
     plt.close()
-
-    memoria_notes_path = os.path.join(output_dir, f"{filename.split('.')[0]}_notes.txt")
-    try:
-        with open(memoria_notes_path, "w") as f_notes:
-            f_notes.write(full_description)
-        print(f"Notas para la memoria ({filename}) guardadas en: {memoria_notes_path}")
-    except Exception as e:
-        print(f"Error al guardar notas para {filename}: {e}")
-
+    memoria_notes_path = os.path.join(output_dir, filename.replace('.png', '_notes.txt'))
+    with open(memoria_notes_path, "w") as f:
+        f.write("\n".join(notes_list))
+    print(f"Notas para la memoria (histograma {page_description.lower()} por tipo) guardadas en: {memoria_notes_path}")
 
 def plot_first_second_page_duration_histograms_by_type(
     df: pd.DataFrame,
@@ -488,122 +423,249 @@ def plot_first_second_page_duration_histograms_by_type(
     threshold_percentile: float | None = 0.99
 ) -> None:
     """
-    Genera histogramas normalizados y solapados de la duración de la primera y segunda página,
-    separados por tipo (navegación vs. contenido).
+    Genera histogramas normalizados para la duración de la primera y segunda página, 
+    comparando tipos 'navegación' vs. 'contenido'.
     """
     print("\nGenerando histogramas normalizados de duración de primera/segunda página por tipo...")
-    if not all(col in df.columns for col in ['SessionID', 'marca de tiempo', 'PageType']):
-        print("Error: Se requieren las columnas 'SessionID', 'marca de tiempo' y 'PageType'.")
+    if 'PageType' not in df.columns or df['PageType'].isnull().all():
+        print("Error: Columna 'PageType' no encontrada o vacía. Ejecute classify_page_type primero.")
         return
-
     df_sorted = df.sort_values(by=['SessionID', 'marca de tiempo'])
-    
-    first_page_data_for_hist = [] 
-    second_page_data_for_hist = []
-
-    for session_id, group in df_sorted.groupby('SessionID'):
-        # Asegurar que el grupo tiene las columnas necesarias
-        if not all(col in group.columns for col in ['marca de tiempo', 'PageType']):
-            continue # Saltar grupo si faltan datos
-            
-        group_timestamps = group['marca de tiempo'].tolist()
-        group_pagetypes = group['PageType'].tolist()
-
-        if len(group_timestamps) >= 2:
-            duration_first = group_timestamps[1] - group_timestamps[0]
-            page_type_first = group_pagetypes[0]
-            if duration_first >= 0: 
-                first_page_data_for_hist.append({'duration': duration_first, 'PageType': page_type_first})
-        
-        if len(group_timestamps) >= 3:
-            duration_second = group_timestamps[2] - group_timestamps[1]
-            page_type_second = group_pagetypes[1]
-            if duration_second >= 0: 
-                second_page_data_for_hist.append({'duration': duration_second, 'PageType': page_type_second})
-
-    # Plot for First Page Durations
-    if first_page_data_for_hist:
-        df_first_page_durs_hist = pd.DataFrame(first_page_data_for_hist)
-        _plot_normalized_duration_histogram_by_type(
-            df_first_page_durs_hist,
-            "Primera Página",
-            output_dir,
-            first_page_filename,
-            threshold_percentile
-        )
-    else:
-        print("No hay datos de duración de primera página para generar histograma por tipo.")
-
-    # Plot for Second Page Durations
-    if second_page_data_for_hist:
-        df_second_page_durs_hist = pd.DataFrame(second_page_data_for_hist)
-        _plot_normalized_duration_histogram_by_type(
-            df_second_page_durs_hist,
-            "Segunda Página",
-            output_dir,
-            second_page_filename,
-            threshold_percentile
-        )
-    else:
-        print("No hay datos de duración de segunda página para generar histograma por tipo.")
-
-
-# --- Funciones para la Tarea 2.8 --- 
+    df_sorted['next_timestamp_in_session'] = df_sorted.groupby('SessionID')['marca de tiempo'].shift(-1)
+    df_sorted['first_page_duration'] = df_sorted['next_timestamp_in_session'] - df_sorted['marca de tiempo']
+    first_pages_data = df_sorted.groupby('SessionID').first().reset_index()
+    first_pages_data = first_pages_data[first_pages_data['first_page_duration'] >= 0][['first_page_duration', 'PageType']].rename(columns={'first_page_duration': 'duration'})
+    _plot_normalized_duration_histogram_by_type(first_pages_data, "Primera Página", output_dir, first_page_filename, threshold_percentile)
+    df_sorted['next_next_timestamp_in_session'] = df_sorted.groupby('SessionID')['marca de tiempo'].shift(-2)
+    df_sorted['second_page_duration'] = df_sorted['next_next_timestamp_in_session'] - df_sorted['next_timestamp_in_session']
+    second_pages_data = df_sorted.groupby('SessionID').nth(1).reset_index()
+    second_pages_data = second_pages_data[second_pages_data['second_page_duration'] >= 0][['second_page_duration', 'PageType']].rename(columns={'second_page_duration': 'duration'})
+    _plot_normalized_duration_histogram_by_type(second_pages_data, "Segunda Página", output_dir, second_page_filename, threshold_percentile)
 
 def _extract_display_domain(host_remoto: str) -> str:
     """
-    Extrae un "dominio de visualización" del campo 'Host remoto'.
-    Si es una IP, la devuelve. Si es un nombre de host, lo devuelve.
-    Intenta simplificar un poco los nombres de host comunes de la NASA o gubernamentales si es posible,
-    pero principalmente se enfoca en obtener una etiqueta agrupable.
+    Extrae un nombre de host/dominio 'limpio' o devuelve la IP si no es un nombre de host.
+    Intenta manejar casos comunes de nombres de host vs IPs.
     """
     if pd.isna(host_remoto):
         return "desconocido"
-    
-    # Comprobar si es una IP (simplificado)
-    # Una comprobación más robusta usaría expresiones regulares o la librería ipaddress
-    is_ip = all(part.isdigit() for part in host_remoto.split('.')) and len(host_remoto.split('.')) == 4
-    if is_ip:
-        return host_remoto
-    else:
-        # Es un nombre de host, podríamos intentar normalizarlo un poco
-        # Ejemplo simple: si termina en .arc.nasa.gov, quizás solo queremos arc.nasa.gov
-        # O si es proxy.aol.com, quizás solo aol.com. Esto puede volverse complejo.
-        # Por ahora, devolvemos el host tal cual para una primera aproximación.
-        return host_remoto.lower() # Convertir a minúsculas para consistencia
+    host_str = str(host_remoto)
+    parts = host_str.split('.')
+    if len(parts) == 4 and all(part.isdigit() and 0 <= int(part) <= 255 for part in parts):
+        return host_str
+    if '.' not in host_str:
+        return host_str
+    return host_str
 
 def get_top_domains_by_hits_and_sessions(df: pd.DataFrame, output_dir: str, top_n: int = 20) -> pd.DataFrame | None:
     """
-    Calcula los N dominios más repetidos por número de hits y sesiones únicas.
-    Guarda la tabla resultante en un archivo CSV.
+    Identifica los N dominios/hosts más repetidos, por número de hits y sesiones.
+    Utiliza el campo 'Host remoto' directamente después de una limpieza básica con _extract_display_domain.
     """
-    print(f"\n--- Iniciando Tarea 2.8.1: Top {top_n} Dominios por Hits y Sesiones ---")
-    if not all(col in df.columns for col in ['Host remoto', 'SessionID']):
+    print("\n--- Analizando Top Dominios/Hosts (Host Remoto) ---")
+    if 'Host remoto' not in df.columns or 'SessionID' not in df.columns:
         print("Error: Se requieren las columnas 'Host remoto' y 'SessionID'.")
         return None
-
-    df_analysis = df.copy()
-    df_analysis['DisplayDomain'] = df_analysis['Host remoto'].apply(_extract_display_domain)
-
-    domain_stats = df_analysis.groupby('DisplayDomain').agg(
-        total_hits = pd.NamedAgg(column='SessionID', aggfunc='size'), # Contar filas (hits)
-        total_unique_sessions = pd.NamedAgg(column='SessionID', aggfunc='nunique')
-    ).reset_index()
-
-    top_domains_df = domain_stats.sort_values(
-        by=['total_hits', 'total_unique_sessions'], 
-        ascending=[False, False]
-    ).head(top_n)
-
-    print(f"\nTop {top_n} dominios más repetidos:")
-    print(top_domains_df.to_string())
-
-    filename = f"top_{top_n}_domains_by_hits_sessions.csv"
-    file_path = os.path.join(output_dir, filename)
+    df_copy = df.copy()
+    df_copy['DisplayDomain'] = df_copy['Host remoto'].apply(_extract_display_domain)
+    domain_hits = df_copy.groupby('DisplayDomain').size().rename('HitCount')
+    domain_sessions = df_copy.groupby('DisplayDomain')['SessionID'].nunique().rename('SessionCount')
+    domain_summary_df = pd.concat([domain_hits, domain_sessions], axis=1).fillna(0)
+    domain_summary_df['SessionCount'] = domain_summary_df['SessionCount'].astype(int)
+    domain_summary_df = domain_summary_df.sort_values(by=['HitCount', 'SessionCount'], ascending=[False, False])
+    df_top_domains = domain_summary_df.head(top_n).reset_index()
+    print(f"\nTop {top_n} Dominios/Hosts por Hits y Sesiones:")
+    print(df_top_domains.to_string())
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_domains_by_hits_sessions.csv')
     try:
-        top_domains_df.to_csv(file_path, index=False)
-        print(f"Tabla de los top {top_n} dominios guardada en: {file_path}")
+        df_top_domains.to_csv(file_path, index=False)
+        print(f"Tabla de los top {top_n} dominios/hosts guardada en: {file_path}")
     except Exception as e:
-        print(f"Error al guardar la tabla de dominios: {e}")
+        print(f"Error al guardar la tabla de top dominios/hosts: {e}")
+    return df_top_domains
+
+def _extract_tld(host: str) -> str:
+    """
+    Extrae el Top-Level Domain (TLD) de un nombre de host limpio.
+    Devuelve una cadena vacía si es una IP o no se puede determinar un TLD simple.
+    """
+    if pd.isna(host):
+        return ""
+    parts = host.split('.')
+    if all(part.isdigit() for part in parts) and len(parts) == 4:
+        return ""
+    if '.' in host:
+        tld = host.split('.')[-1].lower()
+        if not tld.isalpha() or len(tld) < 2:
+            if tld not in ['uk', 'us', 'ca', 'de', 'fr', 'au', 'jp', 'cn', 'in', 'br', 'ru']:
+                 if len(tld) < 3 and not tld.isalpha():
+                     return ""
+                 elif not tld.isalpha():
+                     return ""
+        return tld
+    return ""
+
+def get_top_domain_types(df: pd.DataFrame, output_dir: str, top_n: int = 7) -> pd.DataFrame | None:
+    """
+    Identifica los 7 tipos de dominio (TLD) más repetidos, por número de hits y sesiones.
+    """
+    print("\n--- Analizando Top Tipos de Dominio (TLD) ---")
+    if 'Host remoto' not in df.columns or 'SessionID' not in df.columns:
+        print("Error: Se requieren las columnas 'Host remoto' y 'SessionID'.")
+        return None
+    df_copy = df.copy()
+    df_copy['CleanedHost'] = df_copy['Host remoto'].apply(_extract_display_domain)
+    df_copy['TLD'] = df_copy['CleanedHost'].apply(_extract_tld)
+    df_tlds = df_copy[df_copy['TLD'] != '']
+    if df_tlds.empty:
+        print("No se pudieron extraer TLDs válidos para el análisis.")
+        return None
+    tld_hits = df_tlds.groupby('TLD').size().rename('HitCount')
+    tld_sessions = df_tlds.groupby('TLD')['SessionID'].nunique().rename('SessionCount')
+    tld_summary_df = pd.concat([tld_hits, tld_sessions], axis=1).fillna(0)
+    tld_summary_df['SessionCount'] = tld_summary_df['SessionCount'].astype(int)
+    tld_summary_df = tld_summary_df.sort_values(by=['HitCount', 'SessionCount'], ascending=[False, False])
+    df_top_tlds = tld_summary_df.head(top_n).reset_index()
+    print(f"\nTop {top_n} Tipos de Dominio (TLD) por Hits y Sesiones:")
+    print(df_top_tlds.to_string())
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_domain_types.csv')
+    try:
+        df_top_tlds.to_csv(file_path, index=False)
+        print(f"Tabla de los top {top_n} tipos de dominio guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de tipos de dominio: {e}")
+    return df_top_tlds
+
+def get_top_pages_by_hits_and_sessions(df: pd.DataFrame, output_dir: str, top_n: int = 10) -> pd.DataFrame | None:
+    """
+    Identifica las N páginas más visitadas, por número de hits totales y por número de sesiones distintas.
+    """
+    print("\n--- Analizando Top Páginas Más Visitadas ---")
+    if 'Página' not in df.columns or 'SessionID' not in df.columns:
+        print("Error: Se requieren las columnas 'Página' y 'SessionID'.")
+        return None
+    df_copy = df.copy()
+    page_hits = df_copy.groupby('Página').size().rename('HitCount')
+    page_sessions = df_copy.groupby('Página')['SessionID'].nunique().rename('SessionCount')
+    page_summary_df = pd.concat([page_hits, page_sessions], axis=1).fillna(0)
+    page_summary_df['SessionCount'] = page_summary_df['SessionCount'].astype(int)
+    page_summary_df = page_summary_df.sort_values(by=['HitCount', 'SessionCount'], ascending=[False, False])
+    df_top_pages = page_summary_df.head(top_n).reset_index()
+    print(f"\nTop {top_n} Páginas por Hits y Sesiones:")
+    print(df_top_pages.to_string())
+    output_tables_dir = os.path.join(output_dir, '..', 'tables') 
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_pages_by_hits_sessions.csv')
+    try:
+        df_top_pages.to_csv(file_path, index=False)
+        print(f"Tabla de las top {top_n} páginas guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de top páginas: {e}")
+    return df_top_pages
+
+# --- Funciones para Tarea 2.8.7 ---
+def _extract_directory(page_path: str) -> str:
+    """Helper para extraer el directorio de una ruta de página."""
+    if pd.isna(page_path):
+        return "/"
+    path_str = str(page_path)
+    if path_str == "/":
+        return "/"
+    last_slash_pos = path_str.rfind('/')
+    if last_slash_pos == -1:
+        return "/" # No slash, assume root directory
+    # If path ends with a slash, it's a directory path itself
+    if last_slash_pos == len(path_str) - 1:
+        return path_str
+    # Path before the last slash is the directory
+    directory = path_str[:last_slash_pos]
+    return directory if directory else "/" # Handle cases like "/file.html" -> "/"
+
+def get_top_directories_by_hits_and_sessions(df: pd.DataFrame, output_dir: str, top_n: int = 10) -> pd.DataFrame | None:
+    """
+    Identifica los N directorios más visitados, por número de hits y sesiones.
+    """
+    print("\n--- Analizando Top Directorios Más Visitados ---")
+    if 'Página' not in df.columns or 'SessionID' not in df.columns:
+        print("Error: Se requieren las columnas 'Página' y 'SessionID'.")
+        return None
+    df_copy = df.copy()
+    df_copy['Directory'] = df_copy['Página'].apply(_extract_directory)
+    dir_hits = df_copy.groupby('Directory').size().rename('HitCount')
+    dir_sessions = df_copy.groupby('Directory')['SessionID'].nunique().rename('SessionCount')
+    dir_summary_df = pd.concat([dir_hits, dir_sessions], axis=1).fillna(0)
+    dir_summary_df['SessionCount'] = dir_summary_df['SessionCount'].astype(int)
+    dir_summary_df = dir_summary_df.sort_values(by=['HitCount', 'SessionCount'], ascending=[False, False])
+    df_top_dirs = dir_summary_df.head(top_n).reset_index()
+    print(f"\nTop {top_n} Directorios por Hits y Sesiones:")
+    print(df_top_dirs.to_string())
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_directories_by_hits_sessions.csv')
+    try:
+        df_top_dirs.to_csv(file_path, index=False)
+        print(f"Tabla de los top {top_n} directorios guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de top directorios: {e}")
+    return df_top_dirs
+
+# Nueva función para Tarea 2.8.8
+def get_top_file_types_by_hits(df: pd.DataFrame, output_dir: str, top_n: int = 10) -> pd.DataFrame | None:
+    """
+    Identifica los N tipos de fichero (extensiones) más repetidos por número de accesos/hits.
+    Excluye páginas sin extensión.
+    """
+    print("\n--- Analizando Top Tipos de Fichero (Extensiones) por Hits ---")
+    if 'Página' not in df.columns:
+        print("Error: Se requiere la columna 'Página'.")
+        return None
+
+    df_copy = df.copy()
     
-    return top_domains_df 
+    # Asegurar que tenemos la columna 'extension'
+    if 'extension' not in df_copy.columns:
+        print("Columna 'extension' no encontrada, extrayéndola...")
+        df_copy['extension'] = df_copy['Página'].astype(str).apply(_extract_extension)
+
+    # Filtrar extensiones vacías (páginas de navegación o sin extensión real)
+    df_with_extensions = df_copy[df_copy['extension'] != '']
+
+    if df_with_extensions.empty:
+        print("No se encontraron páginas con extensiones para analizar.")
+        return None
+
+    # Contar hits por extensión
+    file_type_hits = df_with_extensions.groupby('extension').size().rename('HitCount').sort_values(ascending=False)
+    
+    df_top_file_types = file_type_hits.head(top_n).reset_index()
+    df_top_file_types.columns = ['Extension', 'HitCount']
+
+    print(f"\nTop {top_n} Tipos de Fichero (Extensiones) por Hits:")
+    print(df_top_file_types.to_string())
+
+    # Guardar en CSV
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_file_types_by_hits.csv')
+    try:
+        df_top_file_types.to_csv(file_path, index=False)
+        print(f"Tabla de los top {top_n} tipos de fichero guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de top tipos de fichero: {e}")
+
+    return df_top_file_types

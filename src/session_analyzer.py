@@ -374,4 +374,347 @@ def plot_hits_vs_duration_scatter(
         f.write(description_for_memoria)
     print(f"Notas para la memoria (scatter plot) guardadas en: {memoria_notes_path}")
     
-    return combined_df, regression_results 
+    return combined_df, regression_results
+
+# Nueva función para Tarea 2.8.3
+def plot_mean_session_duration_by_hour(
+    df: pd.DataFrame, 
+    output_dir: str, 
+    filename: str = "mean_session_duration_by_hour.png"
+) -> None:
+    """
+    Calcula la duración media de las sesiones (>1 hit) para cada hora del día y genera un gráfico de barras.
+    """
+    print("\n--- Analizando Longitud Media de Sesión por Hora del Día ---")
+    if 'Fecha/Hora' not in df.columns or 'SessionID' not in df.columns or 'marca de tiempo' not in df.columns:
+        print("Error: Se requieren las columnas 'Fecha/Hora', 'SessionID' y 'marca de tiempo'.")
+        return
+    
+    # 1. Calcular duraciones de sesión (>1 hit)
+    session_durations = calculate_session_durations(df) # Esto devuelve una Serie indexada por SessionID
+    if session_durations.empty:
+        print("No hay duraciones de sesión (>1 hit) para analizar por hora.")
+        return
+
+    # 2. Obtener la hora de inicio de las sesiones que tienen duración calculada
+    # Nos interesan las sesiones que están en session_durations.index
+    df_for_start_time = df[df['SessionID'].isin(session_durations.index)]
+    session_start_times = df_for_start_time.groupby('SessionID')['Fecha/Hora'].min()
+    session_start_hour = session_start_times.dt.hour.rename('start_hour')
+
+    # 3. Combinar duraciones con hora de inicio
+    # Usar pd.concat para asegurar la alineación por SessionID (índice)
+    df_hourly_duration = pd.concat([session_durations.rename('duration'), session_start_hour], axis=1)
+    df_hourly_duration.dropna(inplace=True) # Por si alguna sesión no tuvo hora de inicio o duración
+
+    if df_hourly_duration.empty:
+        print("No se pudieron combinar duraciones de sesión con su hora de inicio.")
+        return
+
+    # 4. Calcular duración media por hora
+    mean_duration_by_hour = df_hourly_duration.groupby('start_hour')['duration'].mean()
+
+    # 5. Asegurar que todas las horas (0-23) están presentes para el gráfico
+    mean_duration_by_hour = mean_duration_by_hour.reindex(range(24), fill_value=0)
+
+    print("\nDuración media de sesión (segundos) por hora del día:")
+    print(mean_duration_by_hour.to_string())
+
+    # 6. Generar gráfico de barras
+    plt.figure(figsize=(14, 7))
+    sns.barplot(x=mean_duration_by_hour.index, y=mean_duration_by_hour.values, palette="viridis")
+    plt.title('Longitud Media de las Visitas (Sesiones >1 hit) por Hora del Día')
+    plt.xlabel('Hora del Día (0-23)')
+    plt.ylabel('Duración Media de la Sesión (segundos)')
+    plt.xticks(range(24))
+    plt.grid(True, axis='y', linestyle='--', linewidth=0.5)
+    plt.tight_layout()
+
+    file_path = os.path.join(output_dir, filename)
+    try:
+        plt.savefig(file_path)
+        print(f"Gráfico de longitud media de sesión por hora guardado en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar el gráfico: {e}")
+    plt.close()
+
+# Nueva función para Tarea 2.8.4
+def get_top_visitors_by_sessions(df: pd.DataFrame, output_dir: str, top_n: int = 10) -> pd.DataFrame | None:
+    """
+    Identifica los N visitantes (UserID) más repetidos por número de sesiones.
+    """
+    print("\n--- Analizando Top Visitantes (UserID) por Número de Sesiones ---")
+    if 'UserID' not in df.columns or 'SessionID' not in df.columns:
+        print("Error: Se requieren las columnas 'UserID' y 'SessionID'.")
+        return None
+
+    # Contar sesiones únicas por UserID
+    # No necesitamos df.copy() aquí ya que solo estamos agrupando y contando
+    sessions_per_user = df.groupby('UserID')['SessionID'].nunique().sort_values(ascending=False)
+    
+    if sessions_per_user.empty:
+        print("No se encontraron datos de sesiones por usuario.")
+        return None
+        
+    top_visitors_df = sessions_per_user.head(top_n).reset_index()
+    top_visitors_df.columns = ['UserID', 'SessionCount']
+
+    print(f"\nTop {top_n} Visitantes (UserID) por Número de Sesiones:")
+    print(top_visitors_df.to_string())
+
+    # Guardar en CSV
+    # output_dir es .../graphics/analysis, necesitamos ir a .../tables
+    output_tables_dir = os.path.join(output_dir, '..', 'tables') 
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_visitors_by_sessions.csv')
+    try:
+        top_visitors_df.to_csv(file_path, index=False)
+        print(f"Tabla de los top {top_n} visitantes guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de top visitantes: {e}")
+
+    return top_visitors_df
+
+# Nueva función para Tarea 2.8.5
+def get_visitor_session_distribution(df: pd.DataFrame, output_dir: str, max_sessions_to_detail: int = 9) -> pd.DataFrame | None:
+    """
+    Calcula la distribución del número de visitantes únicos por el número de sesiones que realizan (1 a max_sessions_to_detail).
+    """
+    print("\n--- Analizando Distribución de Sesiones por Visitante ---")
+    if 'UserID' not in df.columns or 'SessionID' not in df.columns:
+        print("Error: Se requieren las columnas 'UserID' y 'SessionID'.")
+        return None
+
+    # Contar sesiones únicas por UserID
+    sessions_per_user = df.groupby('UserID')['SessionID'].nunique()
+
+    if sessions_per_user.empty:
+        print("No se encontraron datos de sesiones por usuario para analizar la distribución.")
+        return None
+
+    # Contar cuántos usuarios tienen X sesiones
+    visitor_counts_by_session_count = sessions_per_user.value_counts().sort_index()
+    
+    # Filtrar para el rango deseado (1 a max_sessions_to_detail)
+    distribution_df = visitor_counts_by_session_count[\
+        (visitor_counts_by_session_count.index >= 1) & \
+        (visitor_counts_by_session_count.index <= max_sessions_to_detail)
+    ].reset_index()
+    distribution_df.columns = ['NumberOfSessions', 'NumberOfUniqueVisitors']
+    
+    # Asegurar que todas las categorías de 1 a max_sessions_to_detail están, incluso si tienen 0 visitantes
+    all_session_counts = pd.DataFrame({'NumberOfSessions': range(1, max_sessions_to_detail + 1)})
+    distribution_df = pd.merge(all_session_counts, distribution_df, on='NumberOfSessions', how='left').fillna(0)
+    distribution_df['NumberOfUniqueVisitors'] = distribution_df['NumberOfUniqueVisitors'].astype(int)
+
+    print(f"\nDistribución de visitantes únicos por número de sesiones (1 a {max_sessions_to_detail}):")
+    print(distribution_df.to_string())
+
+    # Guardar en CSV
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+
+    file_path = os.path.join(output_tables_dir, f'visitor_session_distribution_1_to_{max_sessions_to_detail}.csv')
+    try:
+        distribution_df.to_csv(file_path, index=False)
+        print(f"Tabla de distribución de sesiones por visitante guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de distribución: {e}")
+
+    return distribution_df
+
+# Nueva función para Tarea 2.8.9
+def get_top_entry_pages(df: pd.DataFrame, output_dir: str, top_n: int = 10) -> pd.DataFrame | None:
+    """
+    Identifica las N páginas de entrada (primera página de una sesión) más repetidas.
+    """
+    print("\n--- Analizando Top Páginas de Entrada ---")
+    if 'SessionID' not in df.columns or 'marca de tiempo' not in df.columns or 'Página' not in df.columns:
+        print("Error: Se requieren las columnas 'SessionID', 'marca de tiempo' y 'Página'.")
+        return None
+
+    # Identificar la primera página de cada sesión
+    # Ordenar por SessionID y marca de tiempo, luego tomar la primera de cada grupo SessionID
+    # O usar idxmin para encontrar el índice del primer hit de cada sesión
+    first_hits_indices = df.groupby('SessionID')['marca de tiempo'].idxmin()
+    first_pages_df = df.loc[first_hits_indices]
+
+    if first_pages_df.empty:
+        print("No se pudieron identificar las primeras páginas de las sesiones.")
+        return None
+
+    # Contar cuántas sesiones iniciaron con cada página
+    entry_page_counts = first_pages_df.groupby('Página').size().rename('NumeroDeSesionesIniciadas').sort_values(ascending=False)
+    
+    df_top_entry_pages = entry_page_counts.head(top_n).reset_index()
+    df_top_entry_pages.columns = ['PáginaDeEntrada', 'NumeroDeSesionesIniciadas']
+
+    print(f"\nTop {top_n} Páginas de Entrada por Número de Sesiones Iniciadas:")
+    print(df_top_entry_pages.to_string())
+
+    # Guardar en CSV
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_entry_pages.csv')
+    try:
+        df_top_entry_pages.to_csv(file_path, index=False)
+        print(f"Tabla de las top {top_n} páginas de entrada guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de top páginas de entrada: {e}")
+
+    return df_top_entry_pages
+
+# Nueva función para Tarea 2.8.10
+def get_top_exit_pages(df: pd.DataFrame, output_dir: str, top_n: int = 10) -> pd.DataFrame | None:
+    """
+    Identifica las N páginas de salida (última página de una sesión) más repetidas.
+    """
+    print("\n--- Analizando Top Páginas de Salida ---")
+    if 'SessionID' not in df.columns or 'marca de tiempo' not in df.columns or 'Página' not in df.columns:
+        print("Error: Se requieren las columnas 'SessionID', 'marca de tiempo' y 'Página'.")
+        return None
+
+    # Identificar la última página de cada sesión usando idxmax
+    last_hits_indices = df.groupby('SessionID')['marca de tiempo'].idxmax()
+    last_pages_df = df.loc[last_hits_indices]
+
+    if last_pages_df.empty:
+        print("No se pudieron identificar las últimas páginas de las sesiones.")
+        return None
+
+    # Contar cuántas sesiones terminaron con cada página
+    exit_page_counts = last_pages_df.groupby('Página').size().rename('NumeroDeSesionesTerminadas').sort_values(ascending=False)
+    
+    df_top_exit_pages = exit_page_counts.head(top_n).reset_index()
+    df_top_exit_pages.columns = ['PáginaDeSalida', 'NumeroDeSesionesTerminadas']
+
+    print(f"\nTop {top_n} Páginas de Salida por Número de Sesiones Terminadas:")
+    print(df_top_exit_pages.to_string())
+
+    # Guardar en CSV
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_exit_pages.csv')
+    try:
+        df_top_exit_pages.to_csv(file_path, index=False)
+        print(f"Tabla de las top {top_n} páginas de salida guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de top páginas de salida: {e}")
+
+    return df_top_exit_pages
+
+# Nueva función para Tarea 2.8.11
+def get_top_single_access_pages(df: pd.DataFrame, output_dir: str, top_n: int = 10) -> pd.DataFrame | None:
+    """
+    Identifica las N páginas más comunes en sesiones de acceso único (una sola página vista).
+    """
+    print("\n--- Analizando Top Páginas de Acceso Único ---")
+    if 'SessionID' not in df.columns or 'Página' not in df.columns:
+        print("Error: Se requieren las columnas 'SessionID' y 'Página'.")
+        return None
+
+    # 1. Contar hits por sesión
+    session_hit_counts = df.groupby('SessionID').size()
+    
+    # 2. Identificar sesiones con un solo hit
+    single_hit_session_ids = session_hit_counts[session_hit_counts == 1].index
+    
+    if len(single_hit_session_ids) == 0:
+        print("No se encontraron sesiones de acceso único.")
+        return None
+        
+    # 3. Filtrar el DataFrame para incluir solo esas sesiones
+    single_hit_df = df[df['SessionID'].isin(single_hit_session_ids)]
+
+    # 4. Contar las páginas en estas sesiones de acceso único
+    # Como cada sesión tiene 1 hit, contar las páginas es equivalente a contar las sesiones
+    single_access_page_counts = single_hit_df.groupby('Página').size().rename('NumeroDeVisitasUnicas').sort_values(ascending=False)
+    
+    df_top_single_access = single_access_page_counts.head(top_n).reset_index()
+    df_top_single_access.columns = ['PáginaDeAccesoUnico', 'NumeroDeVisitasUnicas']
+
+    print(f"\nTop {top_n} Páginas de Acceso Único (Sesiones con 1 hit):")
+    print(df_top_single_access.to_string())
+
+    # Guardar en CSV
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    
+    file_path = os.path.join(output_tables_dir, f'top_{top_n}_single_access_pages.csv')
+    try:
+        df_top_single_access.to_csv(file_path, index=False)
+        print(f"Tabla de las top {top_n} páginas de acceso único guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de páginas de acceso único: {e}")
+
+    return df_top_single_access
+
+# Nueva función para Tarea 2.8.12
+def get_session_duration_distribution_minutes(df: pd.DataFrame, output_dir: str) -> pd.DataFrame | None:
+    """
+    Calcula la distribución de la duración de las sesiones (>1 hit) en rangos de minutos.
+    """
+    print("\n--- Analizando Distribución de Duración de Sesiones en Minutos ---")
+    if 'SessionID' not in df.columns or 'marca de tiempo' not in df.columns:
+        print("Error: Se requieren las columnas 'SessionID' y 'marca de tiempo'.")
+        return None
+
+    # 1. Calcular duraciones de sesión (>1 hit) en segundos
+    session_durations_seconds = calculate_session_durations(df)
+    if session_durations_seconds.empty:
+        print("No hay duraciones de sesión (>1 hit) para analizar.")
+        return None
+
+    # 2. Convertir a minutos
+    session_durations_minutes = session_durations_seconds / 60.0
+
+    # 3. Definir los rangos (bins) en minutos
+    # Ej: [0, 1), [1, 2), ..., [9, 10), [10, inf)
+    # Los bordes de los bins: 0, 1, 2, ..., 10, infinito
+    bins = list(range(0, 11)) # Bordes de 0 a 10
+    bins.append(np.inf) # Añadir infinito para el último bin "10+"
+    
+    # Etiquetas para los bins
+    labels = [f'{i}-{i+1} min' for i in range(10)] # 0-1 min, 1-2 min, ..., 9-10 min
+    labels.append('10+ min')
+
+    # 4. Usar pd.cut para asignar cada duración a un rango
+    # right=False para que los rangos sean [inicio, fin), excepto el último
+    duration_bins = pd.cut(session_durations_minutes, bins=bins, labels=labels, right=False, include_lowest=True)
+
+    # 5. Contar sesiones por rango
+    distribution_counts = duration_bins.value_counts().sort_index()
+    
+    distribution_df = distribution_counts.reset_index()
+    distribution_df.columns = ['DuracionRangoMinutos', 'NumeroDeSesiones']
+
+    print("\nDistribución de la Duración de Sesiones (>1 hit) en Minutos:")
+    print(distribution_df.to_string())
+
+    # Guardar en CSV
+    output_tables_dir = os.path.join(output_dir, '..', 'tables')
+    output_tables_dir = os.path.normpath(output_tables_dir)
+    if not os.path.exists(output_tables_dir):
+        os.makedirs(output_tables_dir)
+    
+    file_path = os.path.join(output_tables_dir, 'session_duration_distribution_minutes.csv')
+    try:
+        distribution_df.to_csv(file_path, index=False)
+        print(f"Tabla de distribución de duración de sesiones guardada en: {file_path}")
+    except Exception as e:
+        print(f"Error al guardar la tabla de distribución de duración: {e}")
+
+    return distribution_df 

@@ -1,7 +1,11 @@
-Resumen Estadístico para Duración de la Primera Página (segundos):
-                            count        mean         std  min   25%   50%    75%     max  mode
-Duración Primera Página  173225.0  144.033494  269.650627  0.0  23.0  49.0  117.0  1800.0  15.0
+Estadísticas de Duración de Primera y Segunda Página:
 
-Resumen Estadístico para Duración de la Segunda Página (segundos):
-                            count        mean         std  min   25%   50%    75%     max mode
-Duración Segunda Página  124227.0  127.835334  245.319989  0.0  18.0  44.0  110.0  1800.0  1.0
+Primera Página:
+|   Número de Páginas |   Media (s) |   Desv. Estándar (s) |   Mínimo (s) |   Percentil 25 (s) |   Mediana (s) |   Percentil 75 (s) |   Máximo (s) |   Moda (s) |
+|--------------------:|------------:|---------------------:|-------------:|-------------------:|--------------:|-------------------:|-------------:|-----------:|
+|              173225 |     144.033 |              269.651 |            0 |                 23 |            49 |                117 |         1800 |         15 |
+
+Segunda Página:
+|   Número de Páginas |   Media (s) |   Desv. Estándar (s) |   Mínimo (s) |   Percentil 25 (s) |   Mediana (s) |   Percentil 75 (s) |   Máximo (s) |   Moda (s) |
+|--------------------:|------------:|---------------------:|-------------:|-------------------:|--------------:|-------------------:|-------------:|-----------:|
+|              124227 |     127.835 |               245.32 |            0 |                 18 |            44 |                110 |         1800 |          1 |

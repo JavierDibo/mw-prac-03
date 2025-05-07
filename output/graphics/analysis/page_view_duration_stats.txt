@@ -1,3 +1,11 @@
-Resumen Estadístico de Tiempos de Visualización de Página (segundos):
-                       count        mean         std  min   25%   50%    75%     max mode
-page_view_duration  834850.0  122.381298  239.212842  0.0  16.0  40.0  105.0  1800.0  1.0
+Métrica                   | Valor
+---------------------------|------------------
+Número de Vistas          | 834850.0
+Media (s)                 | 122.38
+Desv. Estándar (s)      | 239.21
+Mínimo (s)                | 0.00
+Percentil 25 (s)          | 16.00
+Mediana (s)               | 40.00
+Percentil 75 (s)          | 105.00
+Máximo (s)                | 1800.00
+Moda (s)                  | 1.0

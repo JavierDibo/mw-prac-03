@@ -10,7 +10,14 @@ from session_analyzer import (
     calculate_per_session_avg_page_time,
     plot_hits_per_session_histogram,
     get_hits_per_session_stats,
-    plot_hits_vs_duration_scatter
+    plot_hits_vs_duration_scatter,
+    plot_mean_session_duration_by_hour,
+    get_top_visitors_by_sessions,
+    get_visitor_session_distribution,
+    get_top_entry_pages,
+    get_top_exit_pages,
+    get_top_single_access_pages,
+    get_session_duration_distribution_minutes
 )
 # Import page analysis functions
 from page_analyzer import (
@@ -23,7 +30,11 @@ from page_analyzer import (
     classify_page_type,
     get_first_second_page_durations_by_type,
     plot_first_second_page_duration_histograms_by_type,
-    get_top_domains_by_hits_and_sessions
+    get_top_domains_by_hits_and_sessions,
+    get_top_domain_types,
+    get_top_pages_by_hits_and_sessions,
+    get_top_directories_by_hits_and_sessions,
+    get_top_file_types_by_hits
 )
 
 # Configuración de Seaborn para los gráficos
@@ -307,16 +318,59 @@ if __name__ == '__main__':
                     os.makedirs(output_tables_dir)
                     print(f"Directorio para tablas creado: {output_tables_dir}")
                 
-                top_domains_table = get_top_domains_by_hits_and_sessions(
-                    df_current_for_analysis, 
-                    output_tables_dir,
-                    top_n=20
-                )
-                # top_domains_table DataFrame está disponible si se necesita para más cosas.
+                top_domains_df = get_top_domains_by_hits_and_sessions(df_current_for_analysis, output_graphics_dir, top_n=20)
+                # if top_domains_df is not None:
+                #     print("\nTop 20 Dominios por Hits y Sesiones:")
+                #     print(top_domains_df.to_string())
 
-                # Aquí se implementarán las tareas 2.8.2 en adelante.
+                # --- Tarea 2.8.2: Tabla (DataFrame): 7 tipos de dominio más repetidos ---
+                # Llamada a la nueva función
+                df_top_domain_types = get_top_domain_types(df_current_for_analysis, output_graphics_dir, top_n=7)
+                # La función get_top_domain_types ya imprime y guarda la tabla.
 
-            else: # Corresponde al if not per_session_avg_page_time_df.empty:
+                # --- Tarea 2.8.3: Gráfico de barras: longitud media de las visitas (sesiones) a lo largo de las 24 horas del día ---
+                plot_mean_session_duration_by_hour(df_current_for_analysis, output_graphics_dir)
+                # La función plot_mean_session_duration_by_hour ya guarda el gráfico.
+
+                # --- Tarea 2.8.4: Tabla (DataFrame): 10 visitantes ('UserID') más repetidos (por número de visitas/sesiones) ---
+                df_top_visitors = get_top_visitors_by_sessions(df_current_for_analysis, output_graphics_dir, top_n=10)
+                # La función get_top_visitors_by_sessions ya imprime y guarda la tabla.
+
+                # --- Tarea 2.8.5: Tabla (DataFrame): número de visitantes ('UserID') únicos, por número de visitas/sesiones que realizan (ej. cuántos usuarios tienen 1 sesión, cuántos tienen 2, ..., hasta 9) ---
+                df_visitor_dist = get_visitor_session_distribution(df_current_for_analysis, output_graphics_dir, max_sessions_to_detail=9)
+                # La función get_visitor_session_distribution ya imprime y guarda la tabla.
+
+                # --- Tarea 2.8.6: Tabla (DataFrame): 10 páginas más visitadas (por número de hits totales y por número de sesiones distintas en las que aparecen) ---
+                df_top_pages = get_top_pages_by_hits_and_sessions(df_current_for_analysis, output_graphics_dir, top_n=10)
+                # La función get_top_pages_by_hits_and_sessions ya imprime y guarda la tabla.
+
+                # --- Tarea 2.8.7: Tabla (DataFrame): 10 directorios más visitados ---
+                df_top_directories = get_top_directories_by_hits_and_sessions(df_current_for_analysis, output_graphics_dir, top_n=10)
+                # La función get_top_directories_by_hits_and_sessions ya imprime y guarda la tabla.
+
+                # --- Tarea 2.8.8: Tabla (DataFrame): 10 tipos de fichero más repetidos (por número de accesos/hits) ---
+                df_top_file_types = get_top_file_types_by_hits(df_current_for_analysis, output_graphics_dir, top_n=10)
+                # La función get_top_file_types_by_hits ya imprime y guarda la tabla.
+
+                # --- Tarea 2.8.9: Tabla (DataFrame): 10 páginas de entrada más repetidas ---
+                df_top_entry_pages = get_top_entry_pages(df_current_for_analysis, output_graphics_dir, top_n=10)
+                # La función get_top_entry_pages ya imprime y guarda la tabla.
+
+                # --- Tarea 2.8.10: Tabla (DataFrame): 10 páginas de salida más repetidas ---
+                df_top_exit_pages = get_top_exit_pages(df_current_for_analysis, output_graphics_dir, top_n=10)
+                # La función get_top_exit_pages ya imprime y guarda la tabla.
+
+                # --- Tarea 2.8.11: Tabla (DataFrame): 10 páginas de acceso único más visitadas ---
+                df_top_single_access = get_top_single_access_pages(df_current_for_analysis, output_graphics_dir, top_n=10)
+                # La función get_top_single_access_pages ya imprime y guarda la tabla.
+
+                # --- Tarea 2.8.12: Tabla (DataFrame): distribución de la duración de las visitas/sesiones en minutos ---
+                df_duration_dist_minutes = get_session_duration_distribution_minutes(df_current_for_analysis, output_graphics_dir)
+                # La función get_session_duration_distribution_minutes ya imprime y guarda la tabla.
+
+                # --- FIN de tareas de 2.8 --- 
+
+            else: # Corresponde a if not per_session_avg_page_time_df.empty:
                 print("\nNo se pudo calcular el tiempo medio por página por sesión (per_session_avg_page_time_df está vacío).")
                 print("Omitiendo tareas 2.3.2 en adelante, incluyendo 2.4, 2.5, 2.6 y 2.7.")
         else: # Corresponde al if mean_time_per_page_seconds is not None:

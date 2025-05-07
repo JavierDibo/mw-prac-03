@@ -357,37 +357,191 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
 
 *   **Tabla 1: 20 Dominios Más Repetidos**
     *   Se extrajeron los dominios/hosts del campo 'Host remoto'. Para cada uno, se contó el número total de hits y el número de sesiones únicas en las que aparecieron. La tabla con los 20 principales dominios, ordenada por total de hits y luego por sesiones únicas, se guardó en `output/tables/top_20_domains_by_hits_sessions.csv`.
-    *   `[Insertar aquí la tabla de los 20 dominios más repetidos, o un resumen/captura, una vez que el script la genere.]`
+    *   A continuación se muestra la tabla:
+        | DisplayDomain             | HitCount | SessionCount |
+        |---------------------------|----------|--------------|
+        | piweba3y.prodigy.com      | 6741     | 527          |
+        | piweba4y.prodigy.com      | 4968     | 506          |
+        | piweba1y.prodigy.com      | 4691     | 471          |
+        | www-d1.proxy.aol.com      | 3264     | 588          |
+        | www-a2.proxy.aol.com      | 3094     | 586          |
+        | www-d4.proxy.aol.com      | 2989     | 545          |
+        | www-b5.proxy.aol.com      | 2979     | 536          |
+        | www-b3.proxy.aol.com      | 2901     | 550          |
+        | www-b2.proxy.aol.com      | 2886     | 569          |
+        | 163.206.89.4              | 2869     | 245          |
+        | www-d2.proxy.aol.com      | 2826     | 555          |
+        | www-d3.proxy.aol.com      | 2787     | 562          |
+        | edams.ksc.nasa.gov        | 2779     | 445          |
+        | www-b4.proxy.aol.com      | 2761     | 559          |
+        | www-a1.proxy.aol.com      | 2747     | 562          |
+        | news.ti.com               | 2727     | 361          |
+        | www-c2.proxy.aol.com      | 2667     | 491          |
+        | piweba2y.prodigy.com      | 2476     | 367          |
+        | www-c5.proxy.aol.com      | 2459     | 439          |
+        | alyssa.prodigy.com        | 2440     | 151          |
 
 *   **Tabla 2: 7 Tipos de Dominio Más Repetidos**
-    *   `[Insertar aquí la Tabla de los 7 tipos de dominio (ej: .com, .edu, de 'Host remoto') más repetidos, por visitas y clics/hits.]`
+    *   Se extrajeron los Tipos de Dominio de Nivel Superior (TLD), como .com, .edu, etc., a partir del campo 'Host remoto'. Se excluyeron las direcciones IP de este análisis. Para cada TLD, se contó el número total de hits y el número de sesiones únicas en las que aparecieron. La tabla con los 7 TLDs principales, ordenada por total de hits y luego por sesiones únicas, se generó y guardó en `output/tables/top_7_domain_types.csv`.
+    *   A continuación se muestra la tabla:
+        | TLD   | HitCount | SessionCount |
+        |-------|----------|--------------|
+        | com   | 338013   | 78194        |
+        | edu   | 124910   | 27981        |
+        | net   | 98136    | 26595        |
+        | gov   | 72651    | 22418        |
+        | ca    | 36648    | 9076         |
+        | uk    | 27097    | 6779         |
+        | jp    | 23712    | 6436         |
 
 *   **Gráfico de Barras 3: Longitud Media de Visitas por Hora del Día**
-    *   `[Insertar aquí el Gráfico de barras de la longitud media de las visitas (sesiones) a lo largo de las 24 horas del día.]`
+    *   Se calculó la duración media de las sesiones (con más de un hit) para cada hora del día, basándose en la hora de inicio de la sesión. El gráfico de barras resultante muestra esta longitud media a lo largo de las 24 horas del día y se guarda en `output/graphics/analysis/mean_session_duration_by_hour.png`.
+    *   ![Gráfico Longitud Media de Visitas por Hora](../output/graphics/analysis/mean_session_duration_by_hour.png)
 
 *   **Tabla 4: 10 Visitantes ('UserID') Más Repetidos**
-    *   `[Insertar aquí la Tabla de los 10 visitantes ('UserID') más repetidos, por número de visitas/sesiones.]`
+    *   Se identificaron los 10 'UserID' (visitantes) que realizaron el mayor número de sesiones. La tabla se guardó en `output/tables/top_10_visitors_by_sessions.csv`.
+    *   A continuación se muestra la tabla:
+        | UserID                   | SessionCount |
+        |--------------------------|--------------|
+        | www-d1.proxy.aol.com     | 588          |
+        | www-a2.proxy.aol.com     | 586          |
+        | www-b2.proxy.aol.com     | 569          |
+        | www-d3.proxy.aol.com     | 562          |
+        | www-a1.proxy.aol.com     | 562          |
+        | www-b4.proxy.aol.com     | 559          |
+        | www-d2.proxy.aol.com     | 555          |
+        | www-b3.proxy.aol.com     | 550          |
+        | www-d4.proxy.aol.com     | 545          |
+        | www-b5.proxy.aol.com     | 536          |
 
 *   **Tabla 5: Número de Visitantes Únicos por Número de Sesiones (1-9)**
-    *   `[Insertar aquí la Tabla del número de visitantes ('UserID') únicos, por número de visitas/sesiones que realizan (ej. cuántos usuarios tienen 1 sesión, cuántos tienen 2, ..., hasta 9).]`
+    *   Se calculó cuántos visitantes únicos (`UserID`) realizaron 1 sesión, cuántos realizaron 2 sesiones, y así sucesivamente hasta 9 sesiones. La tabla con esta distribución se guardó en `output/tables/visitor_session_distribution_1_to_9.csv`.
+    *   A continuación se muestra la tabla:
+        | NumberOfSessions | NumberOfUniqueVisitors |
+        |------------------|------------------------|
+        | 1                | 93072                  |
+        | 2                | 20790                  |
+        | 3                | 7516                   |
+        | 4                | 3557                   |
+        | 5                | 1957                   |
+        | 6                | 1265                   |
+        | 7                | 834                    |
+        | 8                | 563                    |
+        | 9                | 459                    |
 
 *   **Tabla 6: 10 Páginas Más Visitadas**
-    *   `[Insertar aquí la Tabla de las 10 páginas más visitadas, por número de hits totales y por número de sesiones distintas en las que aparecen.]`
+    *   Se identificaron las 10 páginas más visitadas, considerando tanto el número total de hits como el número de sesiones distintas en las que cada página apareció. La tabla se guardó en `output/tables/top_10_pages_by_hits_sessions.csv`.
+    *   A continuación se muestra la tabla:
+        | Página                                     | HitCount | SessionCount |
+        |--------------------------------------------|----------|--------------|
+        | /ksc.html                                  | 83386    | 65684        |
+        | /shuttle/countdown/                        | 64343    | 57428        |
+        | /                                          | 62393    | 54963        |
+        | /shuttle/missions/missions.html            | 46917    | 41827        |
+        | /shuttle/missions/sts-69/mission-sts-69.html | 31355    | 28322        |
+        | /shuttle/countdown/liftoff.html            | 29658    | 22584        |
+        | /history/apollo/apollo.html                | 23316    | 20549        |
+        | /history/history.html                      | 21735    | 19874        |
+        | /history/apollo/apollo-13/apollo-13.html   | 20821    | 17817        |
+        | /shuttle/missions/sts-70/mission-sts-70.html | 19990    | 17501        |
 
 *   **Tabla 7: 10 Directorios Más Visitados**
-    *   `[Insertar aquí la Tabla de los 10 directorios más visitados (extraídos de 'Página'), por número de hits y por número de sesiones distintas.]`
+    *   Se extrajeron los directorios de las rutas de las páginas solicitadas. Se identificaron los 10 directorios más visitados, considerando tanto el número total de hits como el número de sesiones distintas en las que apareció contenido de esos directorios. La tabla se guardó en `output/tables/top_10_directories_by_hits_sessions.csv`.
+    *   A continuación se muestra la tabla:
+        | Directory                        | HitCount | SessionCount |
+        |----------------------------------|----------|--------------|
+        | /                                | 153063   | 118457       |
+        | /shuttle/countdown/              | 64343    | 57428        |
+        | /cgi-bin/imagemap                | 60056    | 33503        |
+        | /shuttle/technology/sts-newsref  | 58862    | 28202        |
+        | /shuttle/missions                | 51565    | 44401        |
+        | /shuttle/countdown               | 47387    | 32260        |
+        | /shuttle/missions/sts-69         | 41742    | 30949        |
+        | /history/apollo                  | 34746    | 21252        |
+        | /shuttle/resources/orbiters      | 30393    | 18427        |
+        | /shuttle/missions/sts-71         | 30258    | 18446        |
 
 *   **Tabla 8: 10 Tipos de Fichero Más Repetidos**
-    *   `[Insertar aquí la Tabla de los 10 tipos de fichero más repetidos (basado en extensión, ej: .gif), por número de accesos/hits.]`
+    *   Se extrajeron las extensiones de las páginas solicitadas para determinar los tipos de fichero. Se contaron los accesos (hits) para cada tipo de fichero (excluyendo páginas sin extensión). La tabla con los 10 tipos de fichero más accedidos se guardó en `output/tables/top_10_file_types_by_hits.csv`.
+    *   A continuación se muestra la tabla:
+        | Extension    | HitCount |
+        |--------------|----------|
+        | html         | 744469   |
+        | txt          | 50746    |
+        | htm          | 22448    |
+        | pdf          | 194      |
+        | pl           | 111      |
+        | doc          | 16       |
+        | pub          | 14       |
+        | bash_history | 11       |
+        | exe          | 10       |
+        | html\        | 5        |
 
 *   **Tabla 9: 10 Páginas de Entrada Más Repetidas**
-    *   `[Insertar aquí la Tabla de las 10 páginas de entrada (primera página de una sesión) más repetidas, por número de sesiones que inician con ellas.]`
+    *   Se identificó la primera página solicitada en cada sesión. Se contaron las ocurrencias de cada página como página de entrada. La tabla muestra las 10 páginas de entrada más comunes y se guardó en `output/tables/top_10_entry_pages.csv`.
+    *   A continuación se muestra la tabla:
+        | PáginaDeEntrada                              | NumeroDeSesionesIniciadas |
+        |----------------------------------------------|---------------------------|
+        | /ksc.html                                    | 50396                     |
+        | /                                            | 47496                     |
+        | /shuttle/countdown/                          | 21768                     |
+        | /shuttle/missions/missions.html            | 18946                     |
+        | /software/winvn/winvn.html                   | 14765                     |
+        | /shuttle/missions/sts-69/mission-sts-69.html | 13392                     |
+        | /shuttle/countdown/liftoff.html            | 9114                      |
+        | /history/apollo/apollo-13/apollo-13.html   | 8381                      |
+        | /images/                                     | 7804                      |
+        | /history/apollo/apollo.html                | 7226                      |
 
 *   **Tabla 10: 10 Páginas de Salida Más Repetidas**
-    *   `[Insertar aquí la Tabla de las 10 páginas de salida (última página de una sesión) más repetidas, por número de sesiones que terminan con ellas.]`
+    *   Se identificó la última página solicitada en cada sesión. Se contaron las ocurrencias de cada página como página de salida. La tabla muestra las 10 páginas de salida más comunes y se guardó en `output/tables/top_10_exit_pages.csv`.
+    *   A continuación se muestra la tabla:
+        | PáginaDeSalida                                 | NumeroDeSesionesTerminadas |
+        |------------------------------------------------|----------------------------|
+        | /ksc.html                                      | 36382                      |
+        | /                                              | 19817                      |
+        | /software/winvn/winvn.html                     | 12817                      |
+        | /shuttle/countdown/liftoff.html                | 11924                      |
+        | /shuttle/countdown/                            | 11845                      |
+        | /shuttle/missions/missions.html                | 9883                       |
+        | /shuttle/missions/sts-71/images/images.html    | 9746                       |
+        | /shuttle/missions/sts-69/mission-sts-69.html   | 8159                       |
+        | /images/                                       | 7883                       |
+        | /history/apollo/apollo-13/apollo-13.html     | 6509                       |
 
 *   **Tabla 11: 10 Páginas de Acceso Único Más Visitadas**
-    *   `[Insertar aquí la Tabla de las 10 páginas de acceso único (sesiones con una sola página vista) más visitadas.]`
+    *   Se identificaron las sesiones que consistieron en la visita a una única página (accesos únicos o "bounces"). Se contaron las ocurrencias de cada página en estas sesiones de acceso único. La tabla muestra las 10 páginas más comunes para este tipo de visita y se guardó en `output/tables/top_10_single_access_pages.csv`.
+    *   A continuación se muestra la tabla:
+        | PáginaDeAccesoUnico                          | NumeroDeVisitasUnicas |
+        |----------------------------------------------|-----------------------|
+        | /ksc.html                                    | 23655                 |
+        | /                                            | 15101                 |
+        | /software/winvn/winvn.html                   | 11314                 |
+        | /images/                                     | 5860                  |
+        | /shuttle/countdown/                          | 5416                  |
+        | /shuttle/countdown/liftoff.html            | 4792                  |
+        | /shuttle/missions/missions.html            | 4721                  |
+        | /shuttle/missions/sts-69/mission-sts-69.html | 4015                  |
+        | /shuttle/missions/sts-71/images/images.html  | 3822                  |
+        | /history/apollo/apollo-13/apollo-13.html   | 3456                  |
 
 *   **Tabla 12: Distribución de Duración de Visitas en Minutos**
-    *   `
+    *   Se calculó la duración de las sesiones (con más de un hit) y se agruparon en rangos de minutos (0-1 min, 1-2 min, ..., 9-10 min, 10+ min). La tabla muestra el número de sesiones que caen en cada rango de duración y se guardó en `output/tables/session_duration_distribution_minutes.csv`.
+    *   A continuación se muestra la tabla:
+        | DuracionRangoMinutos | NumeroDeSesiones |
+        |----------------------|------------------|
+        | 0-1 min              | 35382            |
+        | 1-2 min              | 25545            |
+        | 2-3 min              | 16112            |
+        | 3-4 min              | 11587            |
+        | 4-5 min              | 8892             |
+        | 5-6 min              | 7173             |
+        | 6-7 min              | 6153             |
+        | 7-8 min              | 5029             |
+        | 8-9 min              | 4309             |
+        | 9-10 min             | 3894             |
+        | 10+ min              | 49149            |
+
+## 3. Documentación y entrega
+
+[Descripción general de la fase de documentación y entrega del proyecto.]

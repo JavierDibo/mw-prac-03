@@ -90,22 +90,22 @@
 *   [x] 1. Implementar en Pandas la clasificación de páginas: sin extensión como "navegación", y el resto de extensiones como "contenido". (Si se considera una mejor forma, explicarla y aplicarla, documentando en la memoria). Crear una nueva columna para esto.
 *   [x] 2. Usar Pandas para comparar la duración media de página de cada una de las dos primeras páginas visitadas, separándolas por tipo (navegación vs. contenido).
 *   [x] 3. Generar un histograma normalizado (usando `density=True` en Matplotlib/Seaborn) de la duración media de página de cada una de las dos primeras páginas, con solapamiento de navegación vs. contenido.
-*   [ ] 4. En la memoria, discutir si esta clasificación (navegación/contenido) parece funcionar basándose en las evidencias encontradas.
+*   [x] 4. En la memoria, discutir si esta clasificación (navegación/contenido) parece funcionar basándose en las evidencias encontradas.
 
 ### 2.8. Análisis de datos (Tablas y Gráficos Adicionales)
     *(Generar todas las tablas como DataFrames de Pandas y mostrarlas/guardarlas. Generar gráficos con Matplotlib/Seaborn).*
 *   [x] 1. Tabla (DataFrame): 20 dominios más repetidos (extraer de 'Host remoto', por número de visitas y de clics/hits).
-*   [ ] 2. Tabla (DataFrame): 7 tipos de dominio (ej: .com, .edu, etc., extraer de 'Host remoto') más repetidos (por visitas y clics/hits).
-*   [ ] 3. Gráfico de barras: longitud media de las visitas (sesiones) a lo largo de las 24 horas del día.
-*   [ ] 4. Tabla (DataFrame): 10 visitantes ('UserID') más repetidos (por número de visitas/sesiones).
-*   [ ] 5. Tabla (DataFrame): número de visitantes ('UserID') únicos, por número de visitas/sesiones que realizan (ej. cuántos usuarios tienen 1 sesión, cuántos tienen 2, ..., hasta 9).
-*   [ ] 6. Tabla (DataFrame): 10 páginas más visitadas (por número de hits totales y por número de sesiones distintas en las que aparecen).
-*   [ ] 7. Tabla (DataFrame): 10 directorios más visitados (extraer de 'Página', por número de hits y por número de sesiones distintas).
-*   [ ] 8. Tabla (DataFrame): 10 tipos de fichero más repetidos (basado en extensión, ej: .gif, .jpg) (por número de accesos/hits).
-*   [ ] 9. Tabla (DataFrame): 10 páginas de entrada (primera página de una sesión) más repetidas (por número de sesiones que inician con ellas).
-*   [ ] 10. Tabla (DataFrame): 10 páginas de salida (última página de una sesión) más repetidas (por número de sesiones que terminan con ellas).
-*   [ ] 11. Tabla (DataFrame): 10 páginas de acceso único (sesiones con una sola página vista) más visitadas.
-*   [ ] 12. Tabla (DataFrame): distribución de la duración de las visitas/sesiones en minutos (rangos: 0-1 min, 1-2 min, ..., etc.) (contar número de visitas/sesiones por rango).
+*   [x] 2. Tabla (DataFrame): 7 tipos de dominio (ej: .com, .edu, etc., extraer de 'Host remoto') más repetidos (por visitas y clics/hits).
+*   [x] 3. Gráfico de barras: longitud media de las visitas (sesiones) a lo largo de las 24 horas del día.
+*   [x] 4. Tabla (DataFrame): 10 visitantes ('UserID') más repetidos (por número de visitas/sesiones).
+*   [x] 5. Tabla (DataFrame): número de visitantes ('UserID') únicos, por número de visitas/sesiones que realizan (ej. cuántos usuarios tienen 1 sesión, cuántos tienen 2, ..., hasta 9).
+*   [x] 6. Tabla (DataFrame): 10 páginas más visitadas (por número de hits totales y por número de sesiones distintas en las que aparecen).
+*   [x] 7. Tabla (DataFrame): 10 directorios más visitados (extraer de 'Página', por número de hits y por número de sesiones distintas).
+*   [x] 8. Tabla (DataFrame): 10 tipos de fichero más repetidos (basado en extensión, ej: .gif, .jpg) (por número de accesos/hits).
+*   [x] 9. Tabla (DataFrame): 10 páginas de entrada (primera página de una sesión) más repetidas (por número de sesiones que inician con ellas).
+*   [x] 10. Tabla (DataFrame): 10 páginas de salida (última página de una sesión) más repetidas (por número de sesiones que terminan con ellas).
+*   [x] 11. Tabla (DataFrame): 10 páginas de acceso único (sesiones con una sola página vista) más visitadas.
+*   [x] 12. Tabla (DataFrame): distribución de la duración de las visitas/sesiones en minutos (rangos: 0-1 min, 1-2 min, ..., etc.) (contar número de visitas/sesiones por rango).
 
 ## 3. Documentación y entrega
 *   [ ] 1. Preparar una memoria en formato PDF que incluya:
