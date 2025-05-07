@@ -1,0 +1,1 @@
+Para mejorar la visualización, se omitieron los valores de duración de página por encima del percentil 99 (1341.00 segundos). Esto afectó a 8339 vistas de página (1.00% del total de vistas de página).

@@ -1,0 +1,3 @@
+Resumen Estadístico del Número de Visitas de Página por Sesión:
+   count_sessions  mean_hits  std_hits  min_hits  25%_hits  50%_hits(median)  75%_hits  max_hits mode_hits
+0        289422.0   3.883685  6.119229       1.0       1.0               2.0       4.0     514.0         1

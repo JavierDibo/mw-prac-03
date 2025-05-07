@@ -59,32 +59,32 @@
 *   [x] 5. En la memoria, analizar si los resultados obtenidos subestiman o sobreestiman la verdadera duración de la sesión y explicar por qué.
 
 ### 2.2. Tiempo medio por página
-*   [ ] 1. Calcular el tiempo medio por página. Esto implicará calcular la duración de cada página vista (excepto la última de cada sesión de forma directa). Mostrar la fórmula/lógica implementada en Python en la memoria.
-*   [ ] 2. Construir un histograma del tiempo medio por página usando Matplotlib/Seaborn.
-*   [ ] 3. Incluir los estadísticos habituales (media, DE, mediana, etc.) para el tiempo medio por página (usando Pandas) y comentar los resultados en la memoria.
+*   [x] 1. Calcular el tiempo medio por página. Esto implicará calcular la duración de cada página vista (excepto la última de cada sesión de forma directa). Mostrar la fórmula/lógica implementada en Python en la memoria.
+*   [x] 2. Construir un histograma del tiempo medio por página usando Matplotlib/Seaborn.
+*   [x] 3. Incluir los estadísticos habituales (media, DE, mediana, etc.) para el tiempo medio por página (usando Pandas) y comentar los resultados en la memoria.
 
 ### 2.3. Eliminar comportamiento automático (revisión)
-*   [ ] 1. Usar Pandas para crear una tabla (DataFrame) con las 20 sesiones con menor tiempo medio por página.
-*   [ ] 2. Identificar sesiones con un tiempo medio por página menor de 0.5 segundos.
-*   [ ] 3. Eliminar estas sesiones del DataFrame, salvo que se pueda argumentar que son de usuarios reales (documentar tal caso en la memoria, indicando páginas de la sesión y justificación).
-*   [ ] 4. (Si se eliminaron sesiones) Actualizar los histogramas y estadísticas de los apartados 2.1 y 2.2 usando Matplotlib/Seaborn y Pandas con el DataFrame filtrado.
+*   [x] 1. Usar Pandas para crear una tabla (DataFrame) con las 20 sesiones con menor tiempo medio por página.
+*   [x] 2. Identificar sesiones con un tiempo medio por página menor de 0.5 segundos.
+*   [x] 3. Eliminar estas sesiones del DataFrame, salvo que se pueda argumentar que son de usuarios reales (documentar tal caso en la memoria, indicando páginas de la sesión y justificación).
+*   [x] 4. (Si se eliminaron sesiones) Actualizar los histogramas y estadísticas de los apartados 2.1 y 2.2 usando Matplotlib/Seaborn y Pandas con el DataFrame filtrado.
 
 ### 2.4. Páginas visitadas
-*   [ ] 1. Generar un histograma del número de visitas de página por sesión usando Matplotlib/Seaborn.
-*   [ ] 2. Crear un resumen estadístico del número de visitas de página por sesión (media, desviación estándar, mediana, moda, mínimo y máximo) usando Pandas.
+*   [x] 1. Generar un histograma del número de visitas de página por sesión usando Matplotlib/Seaborn.
+*   [x] 2. Crear un resumen estadístico del número de visitas de página por sesión (media, desviación estándar, mediana, moda, mínimo y máximo) usando Pandas.
 
 ### 2.5. Relación entre visitas y duración
-*   [ ] 1. Generar un diagrama de dispersión de visitas de página vs. duración de la sesión usando Matplotlib/Seaborn.
-*   [ ] 2. Usar Python (e.g., `scikit-learn` o `statsmodels`) para aplicar un modelo de regresión lineal simple y encontrar la ecuación de regresión estimada.
-*   [ ] 3. Superponer la línea de regresión estimada en el gráfico de dispersión.
-*   [ ] 4. En la memoria, comparar la interpretación intuitiva del tiempo medio por página con la pendiente estimada de la regresión.
-*   [ ] 5. En la memoria, interpretar claramente el significado de la pendiente y el coeficiente de corte en el eje Y, y si tienen sentido en este contexto.
+*   [x] 1. Generar un diagrama de dispersión de visitas de página vs. duración de la sesión usando Matplotlib/Seaborn.
+*   [x] 2. Usar Python (e.g., `scikit-learn` o `statsmodels`) para aplicar un modelo de regresión lineal simple y encontrar la ecuación de regresión estimada.
+*   [x] 3. Superponer la línea de regresión estimada en el gráfico de dispersión.
+*   [x] 4. En la memoria, comparar la interpretación intuitiva del tiempo medio por página con la pendiente estimada de la regresión.
+*   [x] 5. En la memoria, interpretar claramente el significado de la pendiente y el coeficiente de corte en el eje Y, y si tienen sentido en este contexto.
 
 ### 2.6. Duración de la visita a las dos primeras páginas
-*   [ ] 1. Usando Pandas, para cada sesión (donde sea posible), calcular la duración de la visita a la primera y segunda página.
-*   [ ] 2. Generar un histograma de la duración de la primera página usando Matplotlib/Seaborn.
-*   [ ] 3. Calcular los estadísticos habituales sobre la duración de la primera y la segunda página visitada usando Pandas.
-*   [ ] 4. Comparar y comentar los resultados de duración de ambas páginas en la memoria.
+*   [x] 1. Usando Pandas, para cada sesión (donde sea posible), calcular la duración de la visita a la primera y segunda página.
+*   [x] 2. Generar un histograma de la duración de la primera página usando Matplotlib/Seaborn.
+*   [x] 3. Calcular los estadísticos habituales sobre la duración de la primera y la segunda página visitada usando Pandas.
+*   [x] 4. Comparar y comentar los resultados de duración de ambas páginas en la memoria.
 
 ### 2.7. Determinación del tipo de página por su extensión
 *   [ ] 1. Implementar en Pandas la clasificación de páginas: sin extensión como "navegación", y el resto de extensiones como "contenido". (Si se considera una mejor forma, explicarla y aplicarla, documentando en la memoria). Crear una nueva columna para esto.

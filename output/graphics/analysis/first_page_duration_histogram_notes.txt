@@ -1,0 +1,1 @@
+Para mejorar la visualización, se omitieron duraciones de primera página por encima del percentil 99 (1464.76 segundos). Esto afectó a 1733 primeras páginas (1.00% del total).

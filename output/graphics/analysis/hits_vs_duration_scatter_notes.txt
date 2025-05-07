@@ -1,0 +1,1 @@
+Para mejorar la visualización: Se omitieron sesiones con > 34 hits (P99). Se omitieron sesiones con duración > 3878.00s (P99). Total sesiones omitidas por capping: 3366 (1.94%).

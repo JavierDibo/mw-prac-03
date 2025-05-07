@@ -1,0 +1,1 @@
+Para mejorar la visualización, se omitieron sesiones con más de 27 hits (correspondiente al percentil 99). Esto afectó a 2827 sesiones (0.98% del total de sesiones).

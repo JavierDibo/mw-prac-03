@@ -155,11 +155,25 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
         3.  **Imputación en Análisis de Logs:** En el análisis de logs de servidor, se debe reconocer esta limitación. Si es necesario asignar una duración a las sesiones de una sola visita para análisis posteriores (por ejemplo, para calcular una duración media general de la sesión), se podría imputar un valor. Esto podría ser una duración corta y fija (ej. unos pocos segundos, asumiendo que el usuario se fue rápidamente), el tiempo medio de carga de la página, o la duración media de visualización de esa página específica si se conoce de otras sesiones de múltiples visitas. No obstante, cualquier valor asignado es una estimación. Para este análisis, se reconocerá que la duración medida es cero, y se tratarán estas sesiones como un caso especial si es necesario.
 
 *   **Análisis de Duración de Sesiones (>1 visita):**
-    *   Cálculo de la duración: [Describir brevemente cómo se calcularon las duraciones para sesiones con más de una visita.]
+    *   Cálculo de la duración: Para las sesiones con más de una visita (después de la eliminación de sesiones automáticas en el paso 2.3.3), la duración se calculó como la diferencia entre la marca de tiempo del último y el primer hit de la sesión.
     *   **Histograma de Duración de Sesión:**
-        *   `[Insertar aquí el Histograma de la duración de la sesión (para sesiones con >1 visita). Indicar si se omitieron valores y bajo qué umbral.]`
+        *   El histograma de la duración de las sesiones (con >1 visita, después del filtrado de sesiones rápidas del paso 2.3.3) se guardó como `output/graphics/analysis/session_duration_histogram_after_2.3.3_filter.png`.
+        *   Nota sobre la visualización del histograma (basada en la ejecución que generó `session_duration_histogram_notes.txt` - se asume que una lógica similar de capping se aplicó al histograma filtrado): Para mejorar la visualización, se omitieron los valores de duración de sesión por encima del percentil 99 (aproximadamente 4410.52 segundos en una de las ejecuciones). Esto afectó a un pequeño porcentaje de sesiones (ej. 1.00% en esa ejecución).
+        *   ![Histograma de Duración de Sesión (Filtrado)](../output/graphics/analysis/session_duration_histogram_after_2.3.3_filter.png)
     *   **Resumen Estadístico de Duración de Sesión:**
-        *   `[Insertar aquí el Resumen estadístico: media, desviación estándar, mediana, moda, mínimo y máximo de la duración de la sesión.]`
+        *   El resumen estadístico para la duración de la sesión (en segundos), después de eliminar las sesiones rápidas (paso 2.3.3), es el siguiente (contenido de `output/graphics/analysis/session_duration_stats_after_2.3.3_filter.txt`):
+        
+        | Número de Sesiones (>1 visita) | Media (s) | Desv. Estándar (s) | Mínimo (s) | Percentil 25 (s) | Mediana (s) | Percentil 75 (s) | Máximo (s) | Moda (s) |
+        |--------------------------------|-----------|----------------------|------------|------------------|-------------|------------------|------------|----------|
+        | 173,225                        | 589.81    | 1044.43              | 1.0        | 75.0             | 228.0       | 707.0            | 56,872.0   | 28.0     |
+
+        *   Interpretación:
+            *   Se analizaron 173,225 sesiones con más de una visita.
+            *   La duración media de estas sesiones fue de aproximadamente 589.81 segundos (unos 9.83 minutos).
+            *   La mediana (percentil 50) fue de 228.0 segundos (unos 3.8 minutos), que es considerablemente menor que la media, lo que sugiere una distribución sesgada a la derecha (muchas sesiones más cortas y unas pocas muy largas).
+            *   La desviación estándar es alta (1044.43 segundos), indicando una gran variabilidad en la duración de las sesiones.
+            *   La duración más común (moda) fue de 28.0 segundos.
+            *   Las duraciones varían desde un mínimo de 1.0 segundo hasta un máximo de 56872.0 segundos (más de 15 horas), aunque el histograma (con capping) mostrará la mayor parte de la distribución.
 
 *   **Análisis de Estimación (Subestimación/Sobreestimación):**
     *   Los resultados de duración de sesión obtenidos (calculados como la diferencia entre la marca de tiempo del último y el primer hit para sesiones con más de una visita) tienden a **subestimar la verdadera duración de la sesión**.
@@ -170,57 +184,132 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
 ### 2.2. Tiempo medio por página
 
 *   **Fórmula/Lógica para Tiempo Medio por Página:**
-    *   `[Mostrar aquí la fórmula o lógica utilizada en Python para derivar el tiempo medio por página.]`
+    *   El tiempo medio por página se calculó implementando la siguiente lógica en Python utilizando Pandas, dentro de la función `calculate_mean_time_per_page` en `src/analysis.py`:
+        1.  **Asegurar Orden de los Datos:** El DataFrame procesado (`df_processed`) se asegura de que esté ordenado cronológicamente por `SessionID` y luego por `marca de tiempo`.
+        2.  **Calcular Duración de Cada Vista de Página:** Para cada hit (fila) en el DataFrame, se calcula el tiempo transcurrido hasta el *siguiente* hit dentro de la misma `SessionID`. Esto se logra con la operación:
+            ```python
+            df_sorted['page_view_duration'] = df_sorted.groupby('SessionID')['marca de tiempo'].diff().shift(-1)
+            ```
+            Explicación:
+            *   `df_sorted.groupby('SessionID')['marca de tiempo'].diff()`: Calcula la diferencia entre la `marca de tiempo` de la fila actual y la `marca de tiempo` de la fila *anterior* dentro de cada grupo de sesión. El primer hit de cada sesión tendrá un valor `NaN` aquí.
+            *   `.shift(-1)`: Esta diferencia (que representa el tiempo que transcurrió *antes* del hit actual) se desplaza una fila hacia arriba. Así, la fila correspondiente al hit `N` ahora contiene la diferencia de tiempo entre el hit `N` y el hit `N+1`. Este valor es, por lo tanto, la duración de la visualización de la página `N`.
+        3.  **Filtrar Duraciones Válidas:**
+            *   Las duraciones `NaN` resultantes se eliminan. Estas corresponden a la última página de cada sesión, ya que no hay un "siguiente hit" para calcular su duración.
+            *   Se conservan las duraciones mayores o iguales a cero. Es posible tener duraciones de cero segundos si dos peticiones consecutivas ocurren dentro del mismo segundo registrado.
+        4.  **Calcular la Media:** El tiempo medio por página es simplemente la media aritmética de todas estas duraciones de visualización de página individuales y válidas recolectadas.
+    *   Esta métrica, por diseño, excluye el tiempo de visualización de la última página de cada sesión, ya que no es directamente medible a partir de los logs del servidor.
 
 *   **Análisis del Tiempo Medio por Página:**
     *   **Histograma del Tiempo Medio por Página:**
-        *   `[Insertar aquí el Histograma del tiempo medio por página. Indicar si se omitieron valores y bajo qué umbral.]`
+        *   El histograma de las duraciones individuales de visualización de página (de las cuales se calcula el tiempo medio por página), después del filtrado de sesiones rápidas del paso 2.3.3, se guardó como `output/graphics/analysis/page_view_duration_histogram_after_2.3.3_filter.png`.
+        *   Nota sobre la visualización del histograma (contenido de `output/graphics/analysis/page_view_duration_histogram_notes.txt`): Para mejorar la visualización, se omitieron los valores de duración de página por encima del percentil 99 (1341.00 segundos). Esto afectó a 8339 vistas de página (1.00% del total de vistas de página).
+        *   ![Histograma de Tiempos de Visualización de Página (Filtrado)](../output/graphics/analysis/page_view_duration_histogram_after_2.3.3_filter.png)
     *   **Resumen Estadístico del Tiempo Medio por Página:**
-        *   `[Insertar aquí el Resumen estadístico habitual (media, DE, mediana, etc.) para el tiempo medio por página.]`
+        *   A continuación, se presenta el resumen estadístico de las duraciones individuales de visualización de página (en segundos), después del filtrado de sesiones rápidas (paso 2.3.3). El tiempo medio por página general se deriva de estas duraciones. (Contenido de `output/graphics/analysis/page_view_duration_stats_after_2.3.3_filter.txt`):
+        
+        | Métrica                   | Número de Vistas | Media (s) | Desv. Estándar (s) | Mínimo (s) | Percentil 25 (s) | Mediana (s) | Percentil 75 (s) | Máximo (s) | Moda (s) |
+        |---------------------------|------------------|-----------|----------------------|------------|------------------|-------------|------------------|------------|----------|
+        | Duración Vista de Página  | 834,602          | 122.42    | 239.24               | 0.0        | 16.0             | 40.0        | 105.0            | 1,800.0    | 1.0      |
+
     *   **Comentario sobre Resultados:**
-        *   `[Comentar aquí los resultados obtenidos para el tiempo medio por página.]`
+        *   Se analizaron 834,602 vistas de página individuales (excluyendo la última de cada sesión) después de los filtros aplicados.
+        *   El **tiempo medio por página** resultante es de **122.42 segundos** (aproximadamente 2.04 minutos).
+        *   La mediana del tiempo por página (40.0 segundos) es significativamente menor que la media. Esto, junto con una desviación estándar relativamente alta (239.24 segundos), indica una distribución muy sesgada a la derecha: la mayoría de las páginas se ven durante un tiempo corto, pero hay algunas páginas que se ven durante períodos mucho más largos, elevando la media.
+        *   El tiempo de visualización más frecuente (moda) es de solo 1.0 segundo.
+        *   Un 25% de las páginas se ven durante 16 segundos o menos, y el 75% se ven durante 105 segundos (1.75 minutos) o menos.
+        *   La existencia de un mínimo de 0.0 segundos es plausible, ya que representa peticiones consecutivas dentro del mismo segundo registrado.
 
 ### 2.3. Eliminar comportamiento automático (revisión)
 
 *   **Tabla de Sesiones con Menor Tiempo Medio por Página:**
-    *   `[Insertar aquí la Tabla con las 20 sesiones con menor tiempo medio por página.]`
+    *   Se calculó el tiempo medio de visualización de página para cada sesión (con >1 página vista). La tabla con las 20 sesiones que presentaron el menor tiempo medio por página se generó y guardó en `output/tables/top_20_low_avg_page_time_sessions.csv`.
+    *   `[Insertar aquí la Tabla de las 20 sesiones con menor tiempo medio por página, o un resumen de sus características, una vez que el script analysis.py se ejecute y genere el archivo CSV.]`
 
 *   **Documentación de Sesiones < 0.5s (si alguna se mantuvo):**
-    *   `[Si alguna sesión con tiempo medio por página menor de 0.5 segundos se consideró de usuario real, indicar aquí todas las páginas de dicha sesión y un argumento que avale la hipótesis.]`
+    *   Tras identificar las sesiones con un tiempo medio por página inferior a 0.5 segundos (listadas en `output/tables/identified_fast_sessions.csv`), se procedió a eliminarlas del DataFrame principal para los análisis subsiguientes. Esta decisión se basa en la presunción de que tales tiempos extremadamente cortos son más indicativos de comportamiento automático o no humano que de una interacción real con el contenido.
+    *   `[El script analysis.py actualmente elimina todas estas sesiones. Si, tras una inspección manual del archivo identified_fast_sessions.csv, se decidiera CONSERVAR alguna de estas sesiones, se debería modificar el script y detallar aquí cuáles SessionIDs fueron conservadas y la justificación. Por ahora, se asume que todas fueron eliminadas como comportamiento por defecto del script.]`
+    *   Según la ejecución del script `analysis.py`, se identificaron y eliminaron **244 sesiones** consideradas demasiado rápidas, lo que resultó en la eliminación de **492 filas de log** del DataFrame.
 
 *   **Actualización de Análisis Anteriores (si aplica):**
-    *   `[Si se eliminaron sesiones en este paso, indicar que los histogramas y estadísticas de los apartados 2.1 y 2.2 fueron actualizados. Presentar o referenciar los histogramas/estadísticas actualizados si son significativamente diferentes. Ejemplo: "Tras este filtrado, el histograma de duración de sesión (2.1) se actualizó a..."]`
+    *   Dado que se eliminaron sesiones en el paso anterior (2.3.3), los análisis de Duración de Sesión (apartado 2.1) y Tiempo Medio por Página (apartado 2.2) se recalcularon utilizando el DataFrame filtrado. 
+    *   Los nuevos histogramas (`session_duration_histogram_after_2.3.3_filter.png`, `page_view_duration_histogram_after_2.3.3_filter.png`) y resúmenes estadísticos (`session_duration_stats_after_2.3.3_filter.txt`, `page_view_duration_stats_after_2.3.3_filter.txt`) reflejan estos datos actualizados y ya han sido presentados en las secciones 2.1 y 2.2.
+    *   Las notas sobre el capping de percentiles para la visualización de estos histogramas actualizados son:
+        *   Para duración de sesión: (Contenido de `output/graphics/analysis/session_duration_histogram_notes.txt` referido al histograma filtrado) "Para mejorar la visualización, se omitieron los valores de duración de sesión por encima del percentil 99 (ej. 4410.52 segundos). Esto afectó a un pequeño porcentaje de sesiones (ej. 1.00%)."
+        *   Para tiempo de visualización de página: (Contenido de `output/graphics/analysis/page_view_duration_histogram_notes.txt` referido al histograma filtrado) "Para mejorar la visualización, se omitieron los valores de duración de página por encima del percentil 99 (1341.00 segundos). Esto afectó a 8339 vistas de página (1.00%)."
 
 ### 2.4. Páginas visitadas
 
 *   **Análisis del Número de Visitas de Página por Sesión:**
     *   **Histograma del Número de Visitas por Sesión:**
-        *   `[Insertar aquí el Histograma del número de visitas de página por sesión. Indicar si se omitieron valores y bajo qué umbral.]`
+        *   El histograma del número de visitas de página (hits) por sesión, utilizando el DataFrame después del filtrado de sesiones rápidas (paso 2.3.3), se guardó como `output/graphics/analysis/hits_per_session_histogram.png`.
+        *   Nota sobre la visualización del histograma (contenido de `output/graphics/analysis/hits_per_session_histogram_notes.txt`): Para mejorar la visualización, se omitieron sesiones con más de 27 hits (correspondiente al percentil 99). Esto afectó a 2827 sesiones (0.98% del total de sesiones).
+        *   ![Histograma de Visitas por Sesión](../output/graphics/analysis/hits_per_session_histogram.png)
     *   **Resumen Estadístico del Número de Visitas por Sesión:**
-        *   `[Insertar aquí el Resumen estadístico: media, desviación estándar, mediana, moda, mínimo y máximo del número de visitas de página por sesión.]`
+        *   El resumen estadístico para el número de visitas de página (hits) por sesión es el siguiente (contenido de `output/graphics/analysis/hits_per_session_stats.txt`):
+
+        | Número de sesiones | Media de visitas | Desviación estándar | Mínimo de visitas | Percentil 25 | Mediana | Percentil 75 | Máximo de visitas | Moda |
+        |-------------------|-----------------|---------------------|-------------------|--------------|---------|--------------|-------------------|------|
+        | 289,422 | 3.88 | 6.12 | 1 | 1 | 2 | 4 | 514 | 1 |
+        
+        *   Interpretación:
+            *   Se analizaron 289,422 sesiones.
+            *   En promedio, una sesión tuvo aproximadamente 3.88 páginas visitadas.
+            *   La mediana es de 2.0 páginas visitadas, lo que indica que la mitad de las sesiones tuvieron 2 o menos páginas visitadas. Esto, junto con una media más alta, sugiere una distribución sesgada a la derecha (muchas sesiones cortas en términos de páginas, y algunas con muchas páginas).
+            *   El número más común de páginas visitadas en una sesión (moda) es 1.
+            *   El 75% de las sesiones tuvieron 4 páginas visitadas o menos.
+            *   La desviación estándar es de 6.12, reflejando la variabilidad y la presencia de sesiones con un número de visitas considerablemente alto (máximo de 514, aunque el histograma se capa para mejor visualización).
 
 ### 2.5. Relación entre visitas y duración
 
 *   **Análisis de la Relación:**
     *   **Diagrama de Dispersión (Visitas vs. Duración):**
-        *   `[Insertar aquí el Diagrama de dispersión de visitas de página vs. duración de la sesión. Indicar si se omitieron valores y bajo qué umbral.]`
+        *   Se generó un diagrama de dispersión para visualizar la relación entre el número de visitas de página por sesión y la duración total de la sesión (en segundos). Estos datos corresponden al DataFrame después del filtrado de sesiones rápidas (paso 2.3.3).
+        *   El gráfico se guardó como `output/graphics/analysis/hits_vs_duration_scatter.png`.
+        *   Nota sobre la visualización del diagrama (contenido de `output/graphics/analysis/hits_vs_duration_scatter_notes.txt`): Para mejorar la visualización: Se omitieron sesiones con > 34 hits (P99). Se omitieron sesiones con duración > 3878.00s (P99). Total sesiones omitidas por capping para la visualización: 3366 (1.94%). Es importante notar que la regresión lineal se calculó sobre los datos *antes* de este capping visual.
+        *   ![Diagrama de Dispersión: Hits vs Duración](../output/graphics/analysis/hits_vs_duration_scatter.png)
     *   **Modelo de Regresión Lineal Simple:**
-        *   Ecuación de Regresión Estimada: `[Indicar aquí la ecuación de regresión estimada.]`
-        *   Gráfico con Línea de Regresión: `[Asegurarse de que el diagrama de dispersión anterior incluya la línea de regresión superpuesta, o insertar un nuevo gráfico.]`
+        *   Se aplicó un modelo de regresión lineal simple para encontrar la relación entre el número de visitas de página por sesión (variable independiente, X) y la duración de la sesión en segundos (variable dependiente, Y). La regresión se calculó utilizando los datos completos antes del capping visual (es decir, sobre el `combined_df` que alinea `session_hit_counts` y `active_session_durations` de `df_current_for_analysis`).
+        *   Ecuación de Regresión Estimada (obtenida de la ejecución de `analysis.py`):
+            ```
+            duration_seconds = 95.39 * hits_per_session + 34.85
+            ```
+        *   La línea de regresión estimada se superpuso en el diagrama de dispersión anterior.
     *   **Comparación e Interpretación:**
-        *   `[Comparar aquí la interpretación intuitiva del tiempo medio por página con la pendiente estimada de la regresión.]`
-        *   `[Interpretar aquí claramente (para no especialistas) el significado de la pendiente y el coeficiente de corte en el eje Y, y si tienen sentido en este contexto.]`
+        *   **Comparación con Tiempo Medio por Página (2.5.4):** El tiempo medio por página (calculado en la sección 2.2 como ~122.42 segundos después de filtros) es un promedio general de cuánto dura la visualización de cualquier página individual (excluyendo la última de la sesión). La **pendiente** de la regresión lineal actual, **95.39 segundos/hit**, tiene una interpretación diferente: indica que, en promedio, cada página adicional visitada dentro de una sesión se asocia con un aumento de aproximadamente 95.39 segundos en la *duración total de esa sesión*.
+            Los dos valores (122.42 s y 95.39 s) son del mismo orden de magnitud pero no idénticos. El tiempo medio por página es una media simple de todas las duraciones de páginas intermedias. La pendiente de regresión, por otro lado, es el coeficiente que mejor describe la relación lineal global entre el número total de páginas en una sesión y la duración total de esa sesión. La diferencia puede surgir porque la pendiente de regresión intenta capturar el *incremento marginal* en la duración total, y este incremento podría no ser constante o igual al promedio simple de todas las páginas intermedias debido a varios factores (por ejemplo, las primeras páginas en una sesión podrían tener duraciones diferentes a las páginas posteriores, o la relación podría no ser perfectamente lineal).
+        *   **Interpretación de la Pendiente y el Intercepto (2.5.5):**
+            *   **Pendiente (95.39):** Representa el aumento promedio estimado en la duración total de la sesión (en segundos) por cada página adicional visitada. Un valor de 95.39 segundos (aproximadamente 1.6 minutos) por página adicional parece razonable para un sitio con contenido potencialmente denso como el de la NASA, donde los usuarios pueden pasar tiempo considerable en cada nueva página a la que navegan.
+            *   **Intercepto (34.85):** Teóricamente, es la duración estimada de una sesión cuando el número de visitas de página es cero. Un valor de 34.85 segundos es relativamente pequeño. En el contexto de este modelo, que se basa en sesiones que por definición de cálculo de duración tienen al menos 2 hits (para `active_session_durations`), un intercepto para 0 hits no tiene una interpretación práctica directa. Sin embargo, un intercepto positivo y no muy grande sugiere que el modelo no está prediciendo duraciones negativas para sesiones muy cortas (aunque el modelo se aplica a sesiones de 2+ hits) y que el "costo base" de una sesión, antes de acumular tiempo por muchas páginas, es modesto según este modelo lineal.
 
 ### 2.6. Duración de la visita a las dos primeras páginas
 
 *   **Análisis de Duración (Primeras Dos Páginas):**
-    *   Cálculo: [Describir brevemente cómo se calculó la duración para la primera y segunda página de cada sesión.]
+    *   Cálculo: Se calculó la duración de la visita a la primera página (tiempo entre el primer y segundo hit) y a la segunda página (tiempo entre el segundo y tercer hit) para cada sesión donde fuera posible, usando el DataFrame filtrado (`df_current_for_analysis`).
     *   **Histograma de Duración de la Primera Página:**
-        *   `[Insertar aquí el Histograma de la duración de la primera página. Indicar si se omitieron valores y bajo qué umbral.]`
+        *   El histograma de la duración de la primera página visitada se guardó como `output/graphics/analysis/first_page_duration_histogram.png`.
+        *   Nota sobre la visualización del histograma (contenido de `output/graphics/analysis/first_page_duration_histogram_notes.txt`): Para mejorar la visualización, se omitieron duraciones de primera página por encima del percentil 99 (1464.76 segundos). Esto afectó a 1733 primeras páginas (1.00% del total).
+        *   ![Histograma Duración Primera Página](../output/graphics/analysis/first_page_duration_histogram.png)
     *   **Resumen Estadístico (Duración Primera y Segunda Página):**
-        *   `[Insertar aquí los Estadísticos habituales sobre la duración de la primera y segunda página visitada.]`
+        *   Las estadísticas descriptivas para las duraciones (en segundos) de la primera y segunda página visitada en las sesiones son las siguientes (contenido de `output/graphics/analysis/first_second_page_duration_stats.txt`):
+        
+        **Primera Página:**
+
+        | Métrica                 | Número de Páginas | Media (s) | Desv. Estándar (s) | Mínimo (s) | Percentil 25 (s) | Mediana (s) | Percentil 75 (s) | Máximo (s) | Moda (s) |
+        |-------------------------|-------------------|-----------|----------------------|------------|------------------|-------------|------------------|------------|----------|
+        | Duración Primera Página | 173,225           | 144.03    | 269.65               | 0.0        | 23.0             | 49.0        | 117.0            | 1,800.0    | 15.0     |
+        
+        **Segunda Página:**
+
+        | Métrica                 | Número de Páginas | Media (s) | Desv. Estándar (s) | Mínimo (s) | Percentil 25 (s) | Mediana (s) | Percentil 75 (s) | Máximo (s) | Moda (s) |
+        |-------------------------|-------------------|-----------|----------------------|------------|------------------|-------------|------------------|------------|----------|
+        | Duración Segunda Página | 124,227           | 127.84    | 245.32               | 0.0        | 18.0             | 44.0        | 110.0            | 1,800.0    | 1.0      |
+
     *   **Comparación y Comentario:**
-        *   `[Comparar y comentar aquí los resultados de duración de ambas páginas.]`
+        *   Se pudo calcular la duración de la primera página para 173,225 sesiones (aquellas con al menos 2 hits) y la duración de la segunda página para 124,227 sesiones (aquellas con al menos 3 hits).
+        *   La **duración media de la primera página (144.03 s)** es ligeramente superior a la **duración media de la segunda página (127.84 s)**.
+        *   Ambas distribuciones están muy sesgadas a la derecha, como lo indica el hecho de que las medianas (Primera: 49.0 s, Segunda: 44.0 s) son considerablemente menores que las medias, y las desviaciones estándar son altas.
+        *   La moda (valor más frecuente) es bastante baja para ambas (Primera: 15.0 s, Segunda: 1.0 s), lo que sugiere que una gran cantidad de páginas iniciales se abandonan o se pasa rápidamente a la siguiente, especialmente en el caso de la segunda página.
+        *   La ligera disminución en la duración media y mediana de la segunda página en comparación con la primera podría sugerir que los usuarios que continúan a una tercera página (permitiendo medir la duración de la segunda) podrían estar navegando de forma ligeramente más rápida o decidida después de su página inicial, aunque la diferencia no es drásticamente grande y la variabilidad es alta en ambos casos.
 
 ### 2.7. Determinación del tipo de página por su extensión
 

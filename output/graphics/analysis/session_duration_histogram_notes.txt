@@ -1,0 +1,1 @@
+Para mejorar la visualización, se omitieron los valores de duración de sesión por encima del percentil 99 (4410.52 segundos). Esto afectó a 1733 sesiones (1.00% del total de sesiones con >1 visita).
