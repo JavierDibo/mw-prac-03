@@ -87,14 +87,14 @@
 *   [x] 4. Comparar y comentar los resultados de duración de ambas páginas en la memoria.
 
 ### 2.7. Determinación del tipo de página por su extensión
-*   [ ] 1. Implementar en Pandas la clasificación de páginas: sin extensión como "navegación", y el resto de extensiones como "contenido". (Si se considera una mejor forma, explicarla y aplicarla, documentando en la memoria). Crear una nueva columna para esto.
-*   [ ] 2. Usar Pandas para comparar la duración media de página de cada una de las dos primeras páginas visitadas, separándolas por tipo (navegación vs. contenido).
-*   [ ] 3. Generar un histograma normalizado (usando `density=True` en Matplotlib/Seaborn) de la duración media de página de cada una de las dos primeras páginas, con solapamiento de navegación vs. contenido.
+*   [x] 1. Implementar en Pandas la clasificación de páginas: sin extensión como "navegación", y el resto de extensiones como "contenido". (Si se considera una mejor forma, explicarla y aplicarla, documentando en la memoria). Crear una nueva columna para esto.
+*   [x] 2. Usar Pandas para comparar la duración media de página de cada una de las dos primeras páginas visitadas, separándolas por tipo (navegación vs. contenido).
+*   [x] 3. Generar un histograma normalizado (usando `density=True` en Matplotlib/Seaborn) de la duración media de página de cada una de las dos primeras páginas, con solapamiento de navegación vs. contenido.
 *   [ ] 4. En la memoria, discutir si esta clasificación (navegación/contenido) parece funcionar basándose en las evidencias encontradas.
 
 ### 2.8. Análisis de datos (Tablas y Gráficos Adicionales)
     *(Generar todas las tablas como DataFrames de Pandas y mostrarlas/guardarlas. Generar gráficos con Matplotlib/Seaborn).*
-*   [ ] 1. Tabla (DataFrame): 20 dominios más repetidos (extraer de 'Host remoto', por número de visitas y de clics/hits).
+*   [x] 1. Tabla (DataFrame): 20 dominios más repetidos (extraer de 'Host remoto', por número de visitas y de clics/hits).
 *   [ ] 2. Tabla (DataFrame): 7 tipos de dominio (ej: .com, .edu, etc., extraer de 'Host remoto') más repetidos (por visitas y clics/hits).
 *   [ ] 3. Gráfico de barras: longitud media de las visitas (sesiones) a lo largo de las 24 horas del día.
 *   [ ] 4. Tabla (DataFrame): 10 visitantes ('UserID') más repetidos (por número de visitas/sesiones).

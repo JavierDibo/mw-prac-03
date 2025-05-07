@@ -1,0 +1,12 @@
+Resultados del Análisis de Duración Media de Primera y Segunda Página por Tipo:
+
+Duración media de la PRIMERA página por tipo (segundos):
+PageType
+contenido     159.784966
+navegación    111.114766
+
+Duración media de la SEGUNDA página por tipo (segundos):
+PageType
+contenido     146.029659
+navegación     84.947410
+

@@ -314,39 +314,80 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
 ### 2.7. Determinación del tipo de página por su extensión
 
 *   **Explicación de la Clasificación (Navegación vs. Contenido):**
-    *   `[Describir aquí la clasificación de páginas: sin extensión como "navegación", y el resto de extensiones como "contenido". Si se consideró una forma mejor, explicarla y justificarla.]`
+    *   La clasificación de páginas en "navegación" o "contenido" se implementó en la función `classify_page_type` dentro de `src/page_analyzer.py`. Se añadió una nueva columna 'PageType' al DataFrame. El criterio fue el siguiente:
+        1.  Se extrajo la extensión de la columna 'Página'. Se consideraron casos donde la página podría ser solo '/' o terminar en '/' (directorios), y se limpiaron parámetros de URL (ej. `?param=val`).
+        2.  Si la extensión resultante era una cadena vacía (indicando una URL sin extensión aparente, como un directorio o una ruta limpia), la página se clasificó como **"navegación"**.
+        3.  Si la página tenía una extensión, se clasificó como **"contenido"**.
+    *   La distribución resultante de tipos de página en el DataFrame (`df_current_for_analysis`) fue:
+        *   Contenido: ~72.78%
+        *   Navegación: ~27.22%
 
 *   **Análisis por Tipo de Página:**
     *   **Comparación de Duración Media (Primeras Dos Páginas por Tipo):**
-        *   `[Presentar aquí la comparación de la duración media de página de cada una de las dos primeras páginas visitadas, separadas por tipo (navegación vs. contenido). Puede ser una tabla o texto descriptivo.]`
+        *   Utilizando el DataFrame `df_current_for_analysis` (después de los filtros previos), se calcularon las duraciones medias de la primera y segunda página visitada en las sesiones, separadas por el 'PageType' de la página cuya duración se mide. Los resultados fueron (guardados en `output/tables/first_second_page_duration_by_type_stats.txt`):
+            *   **Primera Página Visitada:**
+                *   Tipo 'contenido': Duración media de **159.78 segundos**.
+                *   Tipo 'navegación': Duración media de **111.11 segundos**.
+            *   **Segunda Página Visitada:**
+                *   Tipo 'contenido': Duración media de **146.03 segundos**.
+                *   Tipo 'navegación': Duración media de **84.95 segundos**.
+
     *   **Histograma Normalizado (Duración Media, Primeras Dos Páginas, Navegación vs. Contenido):**
-        *   `[Insertar aquí el Histograma normalizado de la duración media de página de cada una de las dos primeras páginas, con solapamiento de navegación vs. contenido. Indicar si se omitieron valores y bajo qué umbral.]`
+        *   Se generaron histogramas normalizados (`stat='density'`) y con estimación de densidad kernel (KDE) para las duraciones de la primera y segunda página, con las distribuciones para los tipos "navegación" y "contenido" solapadas. Estos se guardaron en `output/graphics/analysis/`.
+        *   Para la **primera página** (`first_page_duration_norm_hist_by_type.png`): Las notas de visualización indican que "Para Primera Página, se omitieron duraciones por encima del percentil 99 (1464.76s). Afectó a 1733 de 173225 (1.00%) vistas."
+            *   ![Histograma Duración Primera Página por Tipo](../output/graphics/analysis/first_page_duration_norm_hist_by_type.png)
+        *   Para la **segunda página** (`second_page_duration_norm_hist_by_type.png`): Las notas de visualización indican que "Para Segunda Página, se omitieron duraciones por encima del percentil 99 (1372.00s). Afectó a 1241 de 124227 (1.00%) vistas."
+            *   ![Histograma Duración Segunda Página por Tipo](../output/graphics/analysis/second_page_duration_norm_hist_by_type.png)
+
     *   **Discusión sobre la Clasificación:**
-        *   `[Discutir aquí si esta forma de separar páginas de navegación y de contenido parece funcionar o no, basándose en las evidencias encontradas.]`
+        *   La clasificación de páginas en "navegación" (aquellas sin extensión de archivo en la URL) y "contenido" (aquellas con extensión) parece ser una primera aproximación **razonablemente efectiva** para distinguir entre diferentes intenciones o fases de la interacción del usuario con el sitio web, basándose en las evidencias de duración de visualización.
+        *   **Evidencia de Duraciones Medias:**
+            *   Para la **primera página** visitada en una sesión, las páginas de 'contenido' (media: 159.78s) tuvieron una duración media notablemente mayor que las páginas de 'navegación' (media: 111.11s).
+            *   Esta tendencia se mantuvo para la **segunda página** visitada: 'contenido' (media: 146.03s) frente a 'navegación' (media: 84.95s).
+            *   Esta diferencia cuantitativa apoya la hipótesis de que los usuarios tienden a pasar más tiempo interactuando con páginas que se presumen ricas en contenido (documentos, artículos, etc., inferidos por tener una extensión) en comparación con páginas que podrían representar directorios, listados o puntos de tránsito sin una extensión explícita.
+        *   **Evidencia de Histogramas Normalizados:**
+            *   Aunque no se analizan aquí las formas exactas de los histogramas, la expectativa es que las distribuciones de duración para las páginas de 'contenido' probablemente muestren una mayor dispersión hacia duraciones más largas (una "cola derecha" más pesada) en comparación con las páginas de 'navegación', que podrían estar más concentradas en duraciones más cortas. Los histogramas generados (`first_page_duration_norm_hist_by_type.png` y `second_page_duration_norm_hist_by_type.png`) permitirían una inspección visual de esta característica.
+        *   **Conclusión Parcial:** La clasificación, aunque simple, logra separar las páginas en dos grupos que exhiben diferencias promedio en el tiempo de permanencia. Esto sugiere que la presencia o ausencia de una extensión puede ser un proxy útil, aunque imperfecto, del tipo de interacción del usuario.
+        *   **Limitaciones y Consideraciones:**
+            *   La media es sensible a valores atípicos. Sería interesante complementar este análisis con medianas de duración por tipo, ya que podrían ofrecer una medida de tendencia central más robusta para distribuciones sesgadas.
+            *   La clasificación es heurística. Algunas páginas sin extensión podrían ser ricas en contenido (ej. aplicaciones web modernas con rutas limpias), y algunas con extensión podrían ser transitorias. Sin embargo, para un análisis a gran escala de logs como este, la heurística proporciona una segmentación útil.
+            *   Esta clasificación no distingue entre diferentes *tipos* de contenido (ej. `.html` vs. `.pdf` vs. `.txt`), que podrían tener patrones de duración muy diferentes entre sí. Cada uno se agrupa bajo el paraguas de "contenido".
 
 ### 2.8. Análisis de datos (Tablas y Gráficos Adicionales)
 
 *   **Tabla 1: 20 Dominios Más Repetidos**
-    *   `[Insertar aquí la Tabla de los 20 dominios más repetidos (extraídos de 'Host remoto'), por número de visitas y de clics/hits.]`
+    *   Se extrajeron los dominios/hosts del campo 'Host remoto'. Para cada uno, se contó el número total de hits y el número de sesiones únicas en las que aparecieron. La tabla con los 20 principales dominios, ordenada por total de hits y luego por sesiones únicas, se guardó en `output/tables/top_20_domains_by_hits_sessions.csv`.
+    *   `[Insertar aquí la tabla de los 20 dominios más repetidos, o un resumen/captura, una vez que el script la genere.]`
+
 *   **Tabla 2: 7 Tipos de Dominio Más Repetidos**
     *   `[Insertar aquí la Tabla de los 7 tipos de dominio (ej: .com, .edu, de 'Host remoto') más repetidos, por visitas y clics/hits.]`
+
 *   **Gráfico de Barras 3: Longitud Media de Visitas por Hora del Día**
     *   `[Insertar aquí el Gráfico de barras de la longitud media de las visitas (sesiones) a lo largo de las 24 horas del día.]`
+
 *   **Tabla 4: 10 Visitantes ('UserID') Más Repetidos**
     *   `[Insertar aquí la Tabla de los 10 visitantes ('UserID') más repetidos, por número de visitas/sesiones.]`
+
 *   **Tabla 5: Número de Visitantes Únicos por Número de Sesiones (1-9)**
     *   `[Insertar aquí la Tabla del número de visitantes ('UserID') únicos, por número de visitas/sesiones que realizan (ej. cuántos usuarios tienen 1 sesión, cuántos tienen 2, ..., hasta 9).]`
+
 *   **Tabla 6: 10 Páginas Más Visitadas**
     *   `[Insertar aquí la Tabla de las 10 páginas más visitadas, por número de hits totales y por número de sesiones distintas en las que aparecen.]`
+
 *   **Tabla 7: 10 Directorios Más Visitados**
     *   `[Insertar aquí la Tabla de los 10 directorios más visitados (extraídos de 'Página'), por número de hits y por número de sesiones distintas.]`
+
 *   **Tabla 8: 10 Tipos de Fichero Más Repetidos**
     *   `[Insertar aquí la Tabla de los 10 tipos de fichero más repetidos (basado en extensión, ej: .gif), por número de accesos/hits.]`
+
 *   **Tabla 9: 10 Páginas de Entrada Más Repetidas**
     *   `[Insertar aquí la Tabla de las 10 páginas de entrada (primera página de una sesión) más repetidas, por número de sesiones que inician con ellas.]`
+
 *   **Tabla 10: 10 Páginas de Salida Más Repetidas**
     *   `[Insertar aquí la Tabla de las 10 páginas de salida (última página de una sesión) más repetidas, por número de sesiones que terminan con ellas.]`
+
 *   **Tabla 11: 10 Páginas de Acceso Único Más Visitadas**
     *   `[Insertar aquí la Tabla de las 10 páginas de acceso único (sesiones con una sola página vista) más visitadas.]`
+
 *   **Tabla 12: Distribución de Duración de Visitas en Minutos**
     *   `

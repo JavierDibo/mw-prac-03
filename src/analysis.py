@@ -19,7 +19,11 @@ from page_analyzer import (
     get_page_view_duration_stats,
     calculate_first_second_page_durations,
     plot_first_page_duration_histogram,
-    get_first_second_page_duration_stats
+    get_first_second_page_duration_stats,
+    classify_page_type,
+    get_first_second_page_durations_by_type,
+    plot_first_second_page_duration_histograms_by_type,
+    get_top_domains_by_hits_and_sessions
 )
 
 # Configuración de Seaborn para los gráficos
@@ -249,33 +253,75 @@ if __name__ == '__main__':
                 else:
                     print("No se pudieron calcular duraciones para la primera página.")
                 
-                if not second_page_durations.empty:
-                    print(f"Se calcularon {len(second_page_durations)} duraciones para la segunda página de sesiones.")
+                if not first_page_durations.empty or not second_page_durations.empty:
+                    get_first_second_page_duration_stats(
+                        first_page_durations, 
+                        second_page_durations, 
+                        output_graphics_dir
+                    )
                 else:
-                    print("No se pudieron calcular duraciones para la segunda página.")
-
-                # --- Tarea 2.6.3: Calcular estadísticos de duración de primera y segunda página ---
-                # Asegurarse que las series existen antes de pasarlas
-                stats_first_page_df, stats_second_page_df = get_first_second_page_duration_stats(
-                    first_page_durations if 'first_page_durations' in locals() and not first_page_durations.empty else pd.Series(dtype='float64'),
-                    second_page_durations if 'second_page_durations' in locals() and not second_page_durations.empty else pd.Series(dtype='float64'),
-                    output_graphics_dir
-                )
-
+                    print("No hay datos de duración de primera o segunda página para calcular estadísticas.")
+                
                 # --- Tarea 2.7: Determinación del tipo de página por su extensión ---
                 print("\n--- Iniciando análisis de Tipo de Página por Extensión (2.7) ---")
+                # Tarea 2.7.1: Implementar clasificación de páginas
+                df_current_for_analysis = classify_page_type(df_current_for_analysis)
                 
-                # 2.7.1: Clasificar páginas y crear columna 'Tipo de Página'
-                # Usar df_current_for_analysis que ya tiene la columna 'Extensión'
-                # Si 'Extensión' es "" (vacío), tipo es 'navegación', sino 'contenido'.
-                df_current_for_analysis['Tipo de Página'] = df_current_for_analysis['Extensión'].apply(
-                    lambda ext: 'navegación' if ext == "" else 'contenido'
+                # Comprobación de que la columna PageType se ha añadido
+                if 'PageType' in df_current_for_analysis.columns:
+                    print("Columna 'PageType' añadida y DataFrame actualizado.")
+                    # print(df_current_for_analysis[['Página', 'PageType']].head().to_string()) # Keep this commented for cleaner output unless debugging
+                    
+                    # Tarea 2.7.2: Comparar duración media de primeras/segundas páginas por tipo
+                    # Asegurar que el directorio de tablas existe
+                    output_tables_dir = os.path.join(project_root, 'output', 'tables')
+                    output_tables_dir = os.path.normpath(output_tables_dir)
+                    if not os.path.exists(output_tables_dir):
+                        os.makedirs(output_tables_dir)
+                        print(f"Directorio para tablas creado: {output_tables_dir}")
+
+                    mean_first_by_type, mean_second_by_type = get_first_second_page_durations_by_type(
+                        df_current_for_analysis,
+                        output_tables_dir # Guardar el .txt en el directorio de tablas
+                    )
+                    # mean_first_by_type y mean_second_by_type contienen las series con las medias
+                    # que pueden usarse más adelante o para la memoria.
+                    
+                    # Tarea 2.7.3: Generar histogramas normalizados de duración por tipo
+                    plot_first_second_page_duration_histograms_by_type(
+                        df_current_for_analysis,
+                        output_graphics_dir # Guardar los gráficos en el directorio de análisis
+                    )
+                    
+                else:
+                    print("Error: La columna 'PageType' no se añadió al DataFrame. Omitiendo tarea 2.7.2 y siguientes.")
+
+                # La tarea 2.7.4 (discusión) se abordará en la memoria.
+
+                # --- Tarea 2.8: Análisis de datos (Tablas y Gráficos Adicionales) ---
+                print("\n--- Iniciando Sección 2.8: Análisis de Datos Adicionales ---")
+
+                # Tarea 2.8.1: Tabla: 20 dominios más repetidos
+                # Asegurar que el directorio de tablas existe (aunque ya debería por usos anteriores)
+                if not os.path.exists(output_tables_dir):
+                    os.makedirs(output_tables_dir)
+                    print(f"Directorio para tablas creado: {output_tables_dir}")
+                
+                top_domains_table = get_top_domains_by_hits_and_sessions(
+                    df_current_for_analysis, 
+                    output_tables_dir,
+                    top_n=20
                 )
-                print("Columna 'Tipo de Página' creada.")
-                print("Distribución de Tipos de Página:")
-                print(df_current_for_analysis['Tipo de Página'].value_counts())
-                # Mostrar algunas filas para verificar
-                # print(df_current_for_analysis[['Página', 'Extensión', 'Tipo de Página']].head(10))
+                # top_domains_table DataFrame está disponible si se necesita para más cosas.
+
+                # Aquí se implementarán las tareas 2.8.2 en adelante.
+
+            else: # Corresponde al if not per_session_avg_page_time_df.empty:
+                print("\nNo se pudo calcular el tiempo medio por página por sesión (per_session_avg_page_time_df está vacío).")
+                print("Omitiendo tareas 2.3.2 en adelante, incluyendo 2.4, 2.5, 2.6 y 2.7.")
+        else: # Corresponde al if mean_time_per_page_seconds is not None:
+            print("\nNo se pudo calcular el tiempo medio por página por sesión (mean_time_per_page_seconds está None).")
+            print("Omitiendo tareas 2.3.2 en adelante, incluyendo 2.4, 2.5, 2.6 y 2.7.")
 
     else:
         print("No se pudieron cargar los datos procesados. Terminando el script de análisis.") 

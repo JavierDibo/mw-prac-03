@@ -1,0 +1,1 @@
+Para Primera Página, se omitieron duraciones por encima del percentil 99 (1464.76s). Afectó a 1733 de 173225 (1.00%) vistas.
