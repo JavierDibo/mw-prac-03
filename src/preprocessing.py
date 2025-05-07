@@ -3,11 +3,10 @@ import re
 import os
 
 # Regex to parse a single log line based on Combined Log Format.
-# Fields captured: host, ident, user, datetime, method, page, protocol, status, size
+# Fields captured: host, datetime, method, page, protocol, status, size
 LOG_PATTERN = re.compile(
     r'^(?P<host>\S+)\s+'                               # Host remoto
-    r'(?P<ident>\S+)\s+'                               # Contraseña (Remote logname, often '-')
-    r'(?P<user>\S+)\s+'                                # Usuario (Remote user, often '-')
+    r'-\s+-\s+'                                     # ident and user fields (always "-", not captured)
     r'\[(?P<datetime>[^\]]+)\]\s+'                     # Fecha/Hora (e.g., 01/Jul/1995:00:00:01 -0400)
     r'"(?P<method>GET|POST|HEAD|PUT|DELETE|OPTIONS|PATCH)\s+'  # Método HTTP
     r'(?P<page>\S+)\s+'                                # Página (Requested resource path)
@@ -16,9 +15,9 @@ LOG_PATTERN = re.compile(
     r'(?P<size>\S+)$'                                  # Tamaño (Size of object in bytes, can be '-')
 )
 
-# Column names as specified in TODO.md
+# Column names as specified in TODO.md (updated)
 COLUMN_NAMES = [
-    'Host remoto', 'Contraseña', 'Usuario', 'Fecha/Hora',
+    'Host remoto', 'Fecha/Hora',
     'Método', 'Página', 'Protocolo', 'Resultado', 'Tamaño'
 ]
 
@@ -26,7 +25,7 @@ def _extract_extension_from_page(page_path: str) -> str:
     """
     Extrae la extensión de un path de página. Devuelve la extensión en minúsculas
     sin el punto inicial, o una cadena vacía si no hay extensión o es inválida.
-    Ej: '/path/file.HTML' -> 'html'; '/path/' -> ''; '/path/nodot' -> ''
+    Ej: '/path/file.HTML' -> 'html'; '/path/' -> ''; '/path/nodot' -> ''.
     """
     if pd.isna(page_path):
         return ""
@@ -45,8 +44,8 @@ def parse_log_line(line: str) -> list | None:
     match = LOG_PATTERN.match(line)
     if match:
         parts = match.groupdict()
-        # Ensure the order matches COLUMN_NAMES
-        return [parts['host'], parts['ident'], parts['user'], parts['datetime'],
+        # Ensure the order matches COLUMN_NAMES (updated)
+        return [parts['host'], parts['datetime'],
                 parts['method'], parts['page'], parts['protocol'],
                 parts['status'], parts['size']]
     return None
@@ -206,6 +205,134 @@ def filter_dataframe_by_extensions(df: pd.DataFrame, allowed_extensions: set[str
     
     return df_filtered
 
+def identify_bots_by_robots_txt(df: pd.DataFrame, save_path_details: str | None = None, save_path_summary: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Identifica hosts que accedieron a '/robots.txt' como bots, añade una columna 'Is_Bot' al DataFrame,
+    y genera tablas de resumen de los bots identificados y sus proporciones.
+
+    Args:
+        df (pd.DataFrame): El DataFrame de logs de entrada.
+        save_path_details (str | None): Ruta para guardar la tabla de detalles de bots.
+        save_path_summary (str | None): Ruta para guardar la tabla de resumen de proporciones de bots.
+
+    Returns:
+        tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: 
+            - DataFrame original con la columna 'Is_Bot' añadida.
+            - DataFrame con detalles de los hosts identificados como bots y su número de peticiones.
+            - DataFrame con el resumen de peticiones de bots vs. no bots y sus proporciones.
+    """
+    print("\nIdentificando bots por acceso a '/robots.txt'...")
+    if 'Página' not in df.columns or 'Host remoto' not in df.columns:
+        print("Error: Las columnas 'Página' y/o 'Host remoto' son necesarias y no se encuentran en el DataFrame.")
+        empty_details = pd.DataFrame(columns=['Bot Host Remoto', 'Número de Peticiones del Bot'])
+        empty_summary = pd.DataFrame(columns=['Categoría', 'Número de Peticiones', 'Proporción'])
+        return df, empty_details, empty_summary
+
+    # Identificar hosts que accedieron a /robots.txt (insensible a mayúsculas/minúsculas para /robots.txt)
+    # Asegurarse de que 'Página' no tenga NaNs que puedan causar problemas con .str
+    bot_hosts = df[df['Página'].fillna('').str.lower() == '/robots.txt']['Host remoto'].unique()
+
+    if len(bot_hosts) == 0:
+        print("No se identificaron hosts que hayan accedido a '/robots.txt'.")
+        df['Is_Bot'] = False
+        identified_bots_details_df = pd.DataFrame(columns=['Bot Host Remoto', 'Número de Peticiones del Bot'])
+    else:
+        print(f"Se identificaron {len(bot_hosts)} hosts como bots por acceder a '/robots.txt'.")
+        df['Is_Bot'] = df['Host remoto'].isin(bot_hosts)
+        
+        # Crear tabla de detalles de bots identificados
+        bot_requests_df = df[df['Is_Bot']]
+        identified_bots_details_df = bot_requests_df.groupby('Host remoto').size().reset_index(name='Número de Peticiones del Bot')
+        identified_bots_details_df.rename(columns={'Host remoto': 'Bot Host Remoto'}, inplace=True)
+        identified_bots_details_df.sort_values(by='Número de Peticiones del Bot', ascending=False, inplace=True)
+        print("\nTop 5 hosts identificados como bots y su número de peticiones:")
+        print(identified_bots_details_df.head())
+
+    # Crear tabla de resumen de proporciones
+    total_requests = len(df)
+    total_bot_requests = df['Is_Bot'].sum()
+    total_human_requests = total_requests - total_bot_requests
+    
+    bot_proportion = total_bot_requests / total_requests if total_requests > 0 else 0
+    human_proportion = total_human_requests / total_requests if total_requests > 0 else 0
+    
+    overall_bot_proportions_df = pd.DataFrame({
+        'Categoría': ['Bots Identificados', 'Peticiones No Identificadas como Bot'],
+        'Número de Peticiones': [total_bot_requests, total_human_requests],
+        'Proporción': [bot_proportion, human_proportion]
+    })
+    print("\nResumen de proporciones de bots:")
+    print(overall_bot_proportions_df)
+
+    # Guardar tablas si se especificaron las rutas
+    if save_path_details and not identified_bots_details_df.empty:
+        try:
+            output_dir_details = os.path.dirname(save_path_details)
+            if output_dir_details and not os.path.exists(output_dir_details):
+                os.makedirs(output_dir_details)
+            identified_bots_details_df.to_csv(save_path_details, index=False)
+            print(f"Tabla de detalles de bots guardada en: {save_path_details}")
+        except Exception as e:
+            print(f"Error al guardar la tabla de detalles de bots: {e}")
+
+    if save_path_summary:
+        try:
+            output_dir_summary = os.path.dirname(save_path_summary)
+            if output_dir_summary and not os.path.exists(output_dir_summary):
+                os.makedirs(output_dir_summary)
+            overall_bot_proportions_df.to_csv(save_path_summary, index=False)
+            print(f"Tabla de resumen de proporciones de bots guardada en: {save_path_summary}")
+        except Exception as e:
+            print(f"Error al guardar la tabla de resumen de proporciones de bots: {e}")
+            
+    return df, identified_bots_details_df, overall_bot_proportions_df
+
+def identify_sessions(df: pd.DataFrame, user_col: str = 'UserID', timestamp_col: str = 'marca de tiempo', timeout_seconds: int = 1800) -> pd.DataFrame:
+    """
+    Identifica sesiones de usuario basadas en un timeout entre hits consecutivos.
+    Añade una columna 'SessionID' al DataFrame.
+
+    Args:
+        df (pd.DataFrame): DataFrame de entrada. Debe tener user_col y timestamp_col.
+        user_col (str): Nombre de la columna con el identificador de usuario.
+        timestamp_col (str): Nombre de la columna con la marca de tiempo en segundos.
+        timeout_seconds (int): Umbral de tiempo en segundos para definir una nueva sesión.
+
+    Returns:
+        pd.DataFrame: El DataFrame con la columna 'SessionID' añadida.
+    """
+    print(f"\nIdentificando sesiones con un timeout de {timeout_seconds / 60} minutos...")
+    if user_col not in df.columns or timestamp_col not in df.columns:
+        print(f"Error: Las columnas '{user_col}' y/o '{timestamp_col}' son necesarias y no se encuentran.")
+        return df
+
+    # Asegurar que el DataFrame esté ordenado correctamente
+    # Es crucial para que el cálculo de la diferencia de tiempo sea correcto dentro de cada grupo de usuario
+    df_sorted = df.sort_values(by=[user_col, timestamp_col])
+
+    # Calcular la diferencia de tiempo con el hit anterior PARA EL MISMO USUARIO
+    df_sorted['time_diff_prev_hit'] = df_sorted.groupby(user_col)[timestamp_col].diff()
+
+    # Una nueva sesión comienza si:
+    # 1. Es el primer hit del usuario (time_diff_prev_hit es NaT/NaN)
+    # 2. La diferencia de tiempo con el hit anterior excede el timeout
+    df_sorted['_is_new_session_start'] = (
+        df_sorted['time_diff_prev_hit'].isnull() | 
+        (df_sorted['time_diff_prev_hit'] > timeout_seconds)
+    )
+
+    # Crear un contador de sesión para cada usuario
+    df_sorted['_session_increment'] = df_sorted.groupby(user_col)['_is_new_session_start'].cumsum()
+
+    # Crear el SessionID combinando UserID y el contador de sesión
+    df_sorted['SessionID'] = df_sorted[user_col].astype(str) + "_" + df_sorted['_session_increment'].astype(str)
+
+    # Eliminar columnas intermedias
+    df_out = df_sorted.drop(columns=['time_diff_prev_hit', '_is_new_session_start', '_session_increment'])
+    
+    print(f"Columna 'SessionID' creada. Número de sesiones únicas identificadas: {df_out['SessionID'].nunique()}")
+    return df_out
+
 if __name__ == '__main__':
     # Get the absolute path of the directory where this script is located (src/)
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -214,7 +341,7 @@ if __name__ == '__main__':
     project_root = os.path.join(script_dir, '..')
     
     # Construct the absolute path to the log file
-    log_file_name = 'NASA_access_log_FULL.txt'
+    log_file_name = 'NASA_access_log_FULL.txt' # O usa 'NASA_access_log_sample_for_testing.txt' para pruebas
     log_path = os.path.join(project_root, 'datos', log_file_name)
     log_path = os.path.normpath(log_path) # Normalize the path (e.g., src/../datos -> datos)
 
@@ -251,12 +378,60 @@ if __name__ == '__main__':
         }
         df_log_filtered = filter_dataframe_by_extensions(df_log, EXTENSIONS_TO_KEEP)
         
-        print("\nInformación del DataFrame filtrado:")
+        print("\nInformación del DataFrame filtrado (antes de identificar bots):")
         df_log_filtered.info()
-        print(df_log_filtered.head())
+        # print(df_log_filtered.head()) # Comentado para reducir output, ya se imprimió info
+
+        # 1.3.1. Identificar bots por acceso a /robots.txt y generar tablas
+        bots_details_csv_path = os.path.join(output_base_dir, 'identified_bots_details.csv')
+        bot_proportions_csv_path = os.path.join(output_base_dir, 'bot_proportions_summary.csv')
         
-        # Aquí df_log_filtered es el DataFrame que se usará para los siguientes pasos
-        # Si se quisiera modificar df_log en sí, se haría df_log = filter_dataframe_by_extensions(df_log, ...)
+        df_log_with_bot_flag, bots_details_table, bot_proportions_table = identify_bots_by_robots_txt(
+            df_log_filtered.copy(), 
+            save_path_details=bots_details_csv_path,
+            save_path_summary=bot_proportions_csv_path
+        )
+        
+        # print("\nInformación del DataFrame después de añadir la bandera 'Is_Bot':")
+        # df_log_with_bot_flag.info()
+        # print(df_log_with_bot_flag[['Host remoto', 'Página', 'Is_Bot']].head())
+        # if df_log_with_bot_flag['Is_Bot'].any():
+        #     print("\nEjemplos de filas marcadas como bots:")
+        #     print(df_log_with_bot_flag[df_log_with_bot_flag['Is_Bot']].head())
+
+        # 1.3.2. Eliminar los registros identificados como bots
+        df_log_no_bots = df_log_with_bot_flag[~df_log_with_bot_flag['Is_Bot']].copy()
+        print("\nInformación del DataFrame después de eliminar los bots identificados (df_log_no_bots):")
+        # df_log_no_bots.info() # Comentado para reducir output
+        # print("\nPrimeras 5 filas del DataFrame sin bots (df_log_no_bots):")
+        # print(df_log_no_bots.head())
+        
+        # 1.4.3. Añadir columna 'UserID' (basada en 'Host remoto')
+        print("\nAñadiendo columna 'UserID'...")
+        df_log_no_bots['UserID'] = df_log_no_bots['Host remoto']
+        print("Columna 'UserID' añadida.")
+        # print(df_log_no_bots[['Host remoto', 'UserID']].head())
+
+        # 1.5.1 & 1.5.2. Identificar sesiones y añadir 'SessionID'
+        df_final_processed = identify_sessions(df_log_no_bots)
+        print("\nInformación del DataFrame después de añadir 'SessionID':")
+        df_final_processed.info()
+        print("\nPrimeras filas del DataFrame con 'SessionID' (ordenado por UserID, marca de tiempo):")
+        print(df_final_processed[['UserID', 'marca de tiempo', 'SessionID', 'Página']].head(10))
+        
+        # Mostrar un ejemplo de varias sesiones para un mismo usuario si es posible
+        if df_final_processed['SessionID'].nunique() < len(df_final_processed):
+            # Buscar un UserID que tenga más de una sesión
+            user_session_counts = df_final_processed.groupby('UserID')['SessionID'].nunique()
+            multi_session_users = user_session_counts[user_session_counts > 1].index
+            if not multi_session_users.empty:
+                example_user = multi_session_users[0]
+                print(f"\nEjemplo de sesiones para el UserID: {example_user}")
+                print(df_final_processed[df_final_processed['UserID'] == example_user][['UserID', 'Fecha/Hora', 'marca de tiempo', 'SessionID', 'Página']].head(15))
+            else:
+                print("\nNo se encontraron usuarios con múltiples sesiones para mostrar como ejemplo detallado (raro).")
+        else:
+            print("\nCada petición es una sesión única o solo hay un usuario/sesión (raro para un dataset grande).")
 
     else:
         print("La carga del DataFrame falló.") 

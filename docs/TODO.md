@@ -16,7 +16,7 @@
 
 ### 1.1. Carga del registro log y pre-procesamiento inicial
 *   [x] 1. Escribir un script en Python para cargar el fichero log (`datos/NASA_access_log_FULL.txt`) usando Pandas, parseando cada línea.
-*   [x] 2. Asegurar la correcta división de los datos en columnas de un DataFrame de Pandas: Host remoto, Contraseña, Usuario, Fecha/Hora, Método, Página, Protocolo, Resultado y Tamaño. (Considerar usar expresiones regulares para el parseo si el formato es complejo).
+*   [ ] 2. Asegurar la correcta división de los datos en columnas de un DataFrame de Pandas: Host remoto, Fecha/Hora, Método, Página, Protocolo, Resultado y Tamaño. (Nota: Los campos 'ident' y 'user' del formato de log original resultaron ser consistentemente '-' y no se incluyen como columnas). (Considerar usar expresiones regulares para el parseo si el formato es complejo).
 *   [x] 3. Usar Pandas para convertir la columna Fecha/Hora a objetos datetime.
 *   [x] 4. Crear una nueva columna en el DataFrame (marca de tiempo) que represente el número de segundos transcurridos desde el 1 de Enero de 1995, usando las funcionalidades datetime de Pandas.
 
@@ -26,14 +26,14 @@
 *   [ ] 3. En la memoria, explicar por qué se deben realizar los pasos de filtrado anteriores.
 
 ### 1.3. De-spidering
-*   [ ] 1. Usar Pandas para identificar registros de bots y crawlers (ej. analizando el campo 'Host remoto' o 'User-Agent' si está disponible o mediante heurísticas comunes). Construir una tabla (DataFrame) con los bots/crawlers identificados y sus proporciones relativas.
-*   [ ] 2. Usar Pandas para eliminar todos los registros identificados como bots, arañas y rastreadores del DataFrame principal.
-*   [ ] 3. En la memoria, explicar por qué se realizan estos pasos de de-spidering.
+*   [x] 1. Usar Pandas para identificar registros de bots y crawlers (ej. analizando el campo 'Host remoto' o mediante heurísticas comunes, ya que el campo User-Agent no está disponible). Construir una tabla (DataFrame) con los bots/crawlers identificados y sus proporciones relativas.
+*   [x] 2. Usar Pandas para eliminar todos los registros identificados como bots, arañas y rastreadores del DataFrame principal.
+*   [x] 3. En la memoria, explicar por qué se realizan estos pasos de de-spidering.
 
 ### 1.4. Identificación de usuarios
-*   [ ] 1. Analizar el DataFrame de Pandas para determinar si el campo 'Usuario' es útil para la identificación.
-*   [ ] 2. Analizar el DataFrame de Pandas para el campo 'referrer' (si se parseó previamente o se puede extraer) o considerar la topología del sitio si se conoce.
-*   [ ] 3. Añadir una nueva columna 'UserID' al DataFrame de Pandas. La estrategia podría ser una combinación de 'Host remoto' (IP) y 'User-Agent' (si se parsea), o simplemente 'Host remoto' si 'User-Agent' no es fiable/disponible.
+*   [x] 1. Analizar el DataFrame de Pandas para determinar si el campo 'Usuario' es útil para la identificación. (Conclusión: Los campos 'ident' y 'user' del formato de log original son consistentemente '-' y no se han incluido como columnas separadas en el DataFrame; por lo tanto, no son útiles para la identificación directa de usuarios).
+*   [x] 2. Analizar el DataFrame de Pandas para el campo 'referrer' (si se parseó previamente o se puede extraer) o considerar la topología del sitio si se conoce. (Conclusión: El campo 'referrer' no está disponible en el formato de log parseado actualmente. El análisis de topología del sitio está fuera del alcance actual).
+*   [x] 3. Añadir una nueva columna 'UserID' al DataFrame de Pandas donde se incluiria la IP.
 
 ### 1.5. Identificación de sesiones
 *   [ ] 1. Implementar en Python (usando Pandas) la lógica para identificar sesiones: agrupar por 'UserID', ordenar por 'marca de tiempo', y aplicar un umbral de `timeout` de 30 minutos entre hits consecutivos para delimitar sesiones.

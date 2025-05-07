@@ -10,11 +10,10 @@
 
 ### 1.1. Carga del registro log y pre-procesamiento inicial
 
-[Describir los pasos realizados para cargar y realizar el pre-procesamiento inicial del log. Incluir detalles sobre el parseo de campos, la conversión de fechas/horas y la creación de la marca de tiempo en segundos desde el 1 de Enero de 1995.]
 El proceso de carga y pre-procesamiento inicial del log de acceso de la NASA (`NASA_access_log_FULL.txt`) se realizó utilizando la biblioteca Pandas en Python. Los pasos principales fueron:
 1.  **Lectura del Archivo:** Se leyó el archivo línea por línea.
-2.  **Parseo de Líneas:** Cada línea se parseó utilizando una expresión regular (`LOG_PATTERN` en `src/preprocessing.py`) para extraer los campos relevantes: Host remoto, Contraseña (ident), Usuario, Fecha/Hora, Método HTTP, Página solicitada, Protocolo HTTP, Código de estado HTTP (Resultado) y Tamaño de la respuesta. Las líneas que no coincidían con el patrón o estaban vacías fueron omitidas.
-3.  **Creación del DataFrame:** Los datos parseados se cargaron en un DataFrame de Pandas con las columnas: 'Host remoto', 'Contraseña', 'Usuario', 'Fecha/Hora', 'Método', 'Página', 'Protocolo', 'Resultado', 'Tamaño'.
+2.  **Parseo de Líneas:** Cada línea se parseó utilizando una expresión regular (`LOG_PATTERN` en `src/preprocessing.py`) para extraer los campos relevantes: Host remoto, Fecha/Hora, Método HTTP, Página solicitada, Protocolo HTTP, Código de estado HTTP (Resultado) y Tamaño de la respuesta.
+3.  **Creación del DataFrame:** Los datos parseados se cargaron en un DataFrame de Pandas con las columnas: 'Host remoto', 'Fecha/Hora', 'Método', 'Página', 'Protocolo', 'Resultado', 'Tamaño'.
 4.  **Conversión de Tipos:**
     *   La columna 'Resultado' (código de estado) se convirtió a tipo numérico.
     *   La columna 'Tamaño' se convirtió a tipo numérico, manejando los valores '-' como NaN.
@@ -24,7 +23,6 @@ El proceso de carga y pre-procesamiento inicial del log de acceso de la NASA (`N
 ### 1.2. Filtrado de datos
 
 *   **Tabla de Extensiones Más Repetidas:**
-    *   `[Insertar aquí la Tabla con las 10 extensiones de página más repetidas y su número de repeticiones. Puede ser un enlace a una imagen de la tabla, una tabla Markdown, o una descripción textual si es breve.]`
     Se extrajeron las extensiones de la columna 'Página' y se contó su frecuencia. La tabla con las 10 extensiones más repetidas se generó y guardó en `output/tables/top_10_extensions.csv`. Su contenido es el siguiente:
 
     ```
@@ -42,20 +40,33 @@ El proceso de carga y pre-procesamiento inicial del log de acceso de la NASA (`N
     ```
 
 *   **Explicación del Filtrado:**
-    *   `[Explicar aquí por qué se realizaron los pasos de filtrado de extensiones, manteniendo solo .htm, .html, .pdf, .asp, .exe, .txt, .doc, .ppt, .xls, .xml y registros con extensión en blanco.]`
-    Posteriormente, el DataFrame se filtró para mantener únicamente los registros correspondientes a un conjunto específico de extensiones de archivo (`.htm`, `.html`, `.pdf`, `.asp`, `.exe`, `.txt`, `.doc`, `.ppt`, `.xls`, `.xml`) o aquellos registros donde la extensión de la página estaba en blanco (considerados como posible navegación o directorios). La justificación detallada de este paso de filtrado se encuentra pendiente y se añadirá según el progreso del `TODO.md` (Tarea 1.2.3).
+    Los pasos de filtrado (identificar las N extensiones de archivo principales y luego conservar solo extensiones específicas o extensiones en blanco) son cruciales por varias razones en el contexto del análisis de logs web:
+    1.  **Enfoque en Contenido Relevante:** Los logs del servidor web capturan solicitudes para todo tipo de recursos, incluyendo imágenes (`.gif`, `.jpg`), hojas de estilo (`.css`), archivos JavaScript (`.js`) y páginas de contenido reales (`.html`, `.pdf`, etc.). Para muchos tipos de análisis (p.ej., comprender patrones de navegación del usuario, documentos de contenido populares), las solicitudes de archivos auxiliares como imágenes o scripts son ruido. El filtrado ayuda a aislar las solicitudes de contenido primario o elementos de navegación. Las extensiones elegidas (`.htm`, `.html`, `.pdf`, `.asp`, `.exe`, `.txt`, `.doc`, `.ppt`, `.xls`, `.xml`) generalmente representan dicho contenido primario o documentos descargables.
+    2.  **Manejo de Casos "Sin Extensión":** Conservar registros donde la extensión de la página está en blanco es importante porque a menudo representan solicitudes de directorios (p.ej., `/ruta/al/directorio/`) o páginas dinámicas donde la extensión no es explícitamente parte de la URL visible para el usuario (p.ej., URLs limpias como `/productos/`). Estos son a menudo centrales para la navegación del sitio y la interacción del usuario. Por ejemplo, una solicitud a `/imagenes/` (sin extensión) podría servir un archivo `index.html` por defecto, representando un punto de navegación.
+    3.  **Reducción del Volumen de Datos:** Los logs web pueden ser enormes. Filtrar solicitudes menos relevantes (basadas en extensiones consideradas menos importantes para los objetivos específicos del análisis) reduce significativamente el tamaño del conjunto de datos. Esto hace que el procesamiento, análisis y visualización subsiguientes sean más rápidos y manejables.
+    4.  **Mejora de la Precisión del Análisis:** Al eliminar solicitudes de recursos incrustados (como imágenes dentro de una página HTML), los análisis como "páginas por sesión" o "tiempo empleado en la página" se vuelven más precisos. Si cada solicitud de imagen se contara como una "vista de página" separada, estas métricas estarían muy sesgadas y no reflejarían el comportamiento real del usuario con respecto al consumo de contenido.
+    5.  **Simplificación del Análisis de Extensiones:** El paso de extraer todas las extensiones y encontrar las N principales (Tarea 1.2.1) ayuda a comprender la composición de las solicitudes al servidor. Este conocimiento puede luego informar la estrategia de filtrado en la Tarea 1.2.2 (conservar extensiones específicas). Por ejemplo, si una extensión inesperada pero importante aparece en la lista principal, podría agregarse a las extensiones a conservar.
 
 ### 1.3. De-spidering
 
-*   **Tabla de Bots y Crawlers:**
-    *   `[Insertar aquí la Tabla con todos los bots y crawlers identificados, indicando las proporciones relativas de estos elementos.]`
+Se implementó una estrategia para identificar bots y crawlers basada en el acceso al archivo `/robots.txt`. Los hosts que solicitaron este archivo fueron marcados como bots. El script `src/preprocessing.py` realiza lo siguiente:
+1.  Identifica los 'Host remoto' únicos que accedieron a `/robots.txt`.
+2.  Añade una nueva columna booleana `Is_Bot` al DataFrame principal, marcando `True` para todas las peticiones originadas por estos hosts identificados.
+3.  Genera dos tablas de resumen en formato CSV, guardadas en el directorio `output/tables/`:
+    *   `identified_bots_details.csv`: Contiene una lista de los 'Host remoto' identificados como bots y el número total de peticiones realizadas por cada uno.
+    *   `bot_proportions_summary.csv`: Muestra el número total de peticiones de los bots identificados frente a las peticiones no identificadas como de bots, junto con sus proporciones relativas respecto al total de peticiones en el DataFrame (filtrado por extensiones).
 
 *   **Explicación del De-spidering:**
-    *   `[Explicar aquí por qué se realizaron los pasos para eliminar bots, arañas y rastreadores de los datos.]`
+    El proceso de "de-spidering" (identificación y eliminación de registros de bots y crawlers) es crucial para el análisis de logs web. Su objetivo principal es **centrarse en el comportamiento humano**, ya que los bots (ej. indexadores de motores de búsqueda) tienen patrones de acceso muy diferentes que pueden distorsionar métricas clave. Incluir tráfico de bots infla el número de visitas, altera las características de las sesiones (duración, páginas por sesión) y puede mostrar una popularidad irreal de ciertos contenidos. Al eliminar estas entradas automatizadas —en nuestro caso, identificando los hosts que accedieron a `/robots.txt` y luego filtrando sus peticiones— se **mejora la precisión de los análisis** y se **reduce el ruido y el volumen de datos**. Esto permite que los patrones de comportamiento de los usuarios reales emerjan más claramente, llevando a conclusiones más fiables sobre la interacción con el sitio web.
 
 ### 1.4. Identificación de usuarios
 
-[Describir los pasos y decisiones tomadas para la identificación de usuarios. Explicar cómo se comprobó el campo de nombre de usuario, el campo referrer o la topología del sitio, y cómo se añadió el nuevo campo/atributo para la identificación de usuarios (e.g., 'UserID').]
+Para la identificación de usuarios, se consideraron los campos disponibles en el log:
+*   **Campos 'ident' y 'user':** Como se determinó en la Tarea 1.1.2 y se confirmó en la Tarea 1.4.1, los campos del log que corresponderían a 'ident' (equivalente a 'Contraseña' en la terminología inicial del proyecto) y 'user' (equivalente a 'Usuario') son consistentemente '-' en los datos. Por lo tanto, no fueron capturados como columnas en el DataFrame final y no aportan información para la identificación de usuarios.
+*   **Campo 'Referrer':** El formato de log que se está procesando (Common Log Format con algunos añadidos, pero no extendido para incluir explícitamente el referrer como un campo estándar separado en la línea principal del log) no proporciona directamente un campo 'referrer' a través del patrón de expresiones regulares actual (`LOG_PATTERN` en `src/preprocessing.py`). Aunque la información del referrer podría estar en las cabeceras HTTP completas (no disponibles en estos logs), no es un campo que se parsea actualmente. Un análisis basado en la topología del sitio para inferir referrers internos requeriría un conocimiento detallado de la estructura del sitio web que está fuera del alcance de este preprocesamiento.
+*   **Campo 'Host remoto' (IP):** Este campo es el candidato principal para la identificación de usuarios en ausencia de otros identificadores más fiables.
+
+La estrategia para crear un 'UserID' se basará en el campo 'Host remoto'.
 
 ### 1.5. Identificación de sesiones
 
