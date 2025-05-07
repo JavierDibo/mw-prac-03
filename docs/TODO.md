@@ -108,13 +108,19 @@
 *   [x] 12. Tabla (DataFrame): distribución de la duración de las visitas/sesiones en minutos (rangos: 0-1 min, 1-2 min, ..., etc.) (contar número de visitas/sesiones por rango).
 
 ## 3. Documentación y entrega
-*   [ ] 1. Preparar una memoria en formato PDF que incluya:
-    *   Los pasos llevados a cabo en cada tarea.
-    *   Las tablas de resultados (pueden ser capturas de DataFrames de Pandas o tablas generadas a partir de ellos).
-    *   Los gráficos generados con Python (Matplotlib/Seaborn).
-    *   El análisis realizado para cada sección.
+*   [ ] 1. Preparar una memoria en formato PDF (`docs/memoria.md`) que incluya:
+    *   [ ] Completar Introducción: `[Breve introducción al proyecto, objetivos de la práctica y estructura del documento.]`
+    *   [ ] Completar Descripción General de Análisis Exploratorio (Sección 2 de `memoria.md`): `[Descripción general de la fase de análisis exploratorio.]`
+    *   [ ] Revisar/Completar Nota General sobre Visualizaciones (Sección 2 de `memoria.md`): `[Si se omitieron valores atípicos... ]`
+    *   [ ] Insertar Tabla de 20 Sesiones con Menor Tiempo Medio por Página (Sección 2.3.1 de `memoria.md`): `[Insertar aquí la Tabla...]` (requiere ejecución de `analysis.py` si no está ya).
+    *   [ ] Revisar/Confirmar Documentación de Sesiones < 0.5s (Sección 2.3.2 de `memoria.md`): `[El script analysis.py actualmente elimina...]`
+    *   [ ] Completar Descripción de Documentación y Entrega (Sección 3 de `memoria.md`): `[Descripción general de la fase de documentación y entrega del proyecto.]`
+    *   [ ] Revisión final: Asegurar que los pasos llevados a cabo en cada tarea estén completamente documentados.
+    *   [ ] Revisión final: Asegurar que todas las tablas de resultados estén presentes y correctamente formateadas.
+    *   [ ] Revisión final: Asegurar que todos los gráficos generados estén insertados, referenciados y visibles.
+    *   [ ] Revisión final: Asegurar que el análisis realizado para cada sección sea coherente y completo.
 *   [ ] 2. Incluir todos los scripts de Python (`.py` files) ubicados en la carpeta `src/`. 
-*   [ ] 3. Comprimir todo (PDF, `src/` con scripts, `datos/` si es necesario (aunque el profesor ya lo tiene)) en un fichero ZIP.
+*   [ ] 3. Comprimir todo (PDF de `memoria.md`, carpeta `src/` con scripts) en un fichero ZIP.
 
 ## 4. Envío
 *   [ ] 1. Enviar el fichero ZIP a través de la tarea de PLATEA habilitada.

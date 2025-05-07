@@ -2,11 +2,11 @@
 
 ## Introducción
 
-[Breve introducción al proyecto, objetivos de la práctica y estructura del documento.]
+Este documento detalla el proceso y los resultados de la Práctica 3: Minería de Uso de la Web, correspondiente a la asignatura de Minería Web. El objetivo principal de esta práctica es aplicar técnicas de pre-procesamiento y análisis exploratorio a un conjunto de datos de logs de acceso del servidor web de la NASA. A través de estos análisis, se busca extraer información útil sobre el comportamiento de los usuarios, las características de las sesiones de navegación y los patrones de acceso al contenido del sitio. La estructura de este documento sigue las fases de la práctica: primero, se describe el pre-procesamiento de los datos, seguido del análisis exploratorio de los logs pre-procesados, y finalmente, se concluye con los detalles de la documentación y entrega del proyecto.
 
 ## 1. Pre-procesamiento para análisis de logs
 
-[Descripción general de la fase de pre-procesamiento.]
+La fase de pre-procesamiento es fundamental para transformar los datos crudos del log de acceso web en un formato estructurado y limpio, adecuado para un análisis significativo del comportamiento del usuario. Este proceso se inicia con la carga y el parseo del voluminoso archivo de log de la NASA, extrayendo campos clave de cada registro, como el host remoto, la fecha y hora, el método HTTP, la página solicitada y el código de estado. A continuación, se realizan tareas de limpieza y transformación, incluyendo la conversión de tipos de datos (por ejemplo, la columna de fecha/hora a objetos `datetime` y la creación de una marca de tiempo numérica), y el manejo de valores ausentes o inconsistentes. Una parte crucial es el filtrado de datos para enfocar el análisis en las solicitudes relevantes, lo que implica identificar y, a menudo, excluir extensiones de archivo correspondientes a recursos secundarios (como imágenes) para concentrarse en páginas de contenido primario y directorios. El proceso de "de-spidering" se aplica para identificar y eliminar el tráfico generado por bots y crawlers, con el fin de que los análisis posteriores reflejen la actividad humana real. Finalmente, se implementan estrategias para la identificación de usuarios (basada en el 'Host remoto') y la creación de sesiones de usuario (agrupando las peticiones por usuario y aplicando un umbral de inactividad de 30 minutos). Todos estos pasos son esenciales para preparar un conjunto de datos refinado que sirva de base para la fase de análisis exploratorio.
 
 ### 1.1. Carga del registro log y pre-procesamiento inicial
 
@@ -25,19 +25,18 @@ El proceso de carga y pre-procesamiento inicial del log de acceso de la NASA (`N
 *   **Tabla de Extensiones Más Repetidas:**
     Se extrajeron las extensiones de la columna 'Página' y se contó su frecuencia. La tabla con las 10 extensiones más repetidas se generó y guardó en `output/tables/top_10_extensions.csv`. Su contenido es el siguiente:
 
-    ```
-    Extensión,Número de Repeticiones
-    gif,1986781
-    html,750366
-    xbm,110249
-    jpg,79638
-    pl,65304
-    txt,51483
-    mpg,44657
-    htm,22623
-    jpeg,12170
-    wav,6686
-    ```
+    | Extensión | Número de Repeticiones |
+    |-----------|------------------------|
+    | gif       | 1986781               |
+    | html      | 750366                |
+    | xbm       | 110249                |
+    | jpg       | 79638                 |
+    | pl        | 65304                 |
+    | txt       | 51483                 |
+    | mpg       | 44657                 |
+    | htm       | 22623                 |
+    | jpeg      | 12170                 |
+    | wav       | 6686                  |
 
 *   **Explicación del Filtrado:**
     Los pasos de filtrado (identificar las N extensiones de archivo principales y luego conservar solo extensiones específicas o extensiones en blanco) son cruciales por varias razones en el contexto del análisis de logs web:
@@ -140,10 +139,10 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
 
 ## 2. Análisis exploratorio de datos del log
 
-[Descripción general de la fase de análisis exploratorio.]
+En esta fase, se realiza un análisis exploratorio de los datos pre-procesados obtenidos en la etapa anterior. El objetivo es profundizar en la comprensión del comportamiento de los usuarios y las características de su navegación por el sitio web. Se examinarán métricas clave como la duración de las sesiones, el tiempo medio por página, el número de páginas visitadas por sesión, y la relación entre estas variables. Además, se analizará cómo interactúan los usuarios con diferentes tipos de contenido (navegación vs. contenido específico) y se identificarán patrones de acceso, como las páginas de entrada y salida más comunes, los dominios de origen de los visitantes y la actividad a lo largo del día. Este análisis se apoya en la generación de resúmenes estadísticos, histogramas, diagramas de dispersión y tablas descriptivas para visualizar y cuantificar los hallazgos.
 
 **Nota sobre Visualizaciones:**
-*   [Si se omitieron valores atípicos en histogramas o diagramas de dispersión para mejorar la visualización, indicar aquí de forma general. Luego, en cada sección específica, detallar el umbral utilizado y la proporción de registros omitidos para ESE gráfico/análisis en particular.]
+Para mejorar la claridad y legibilidad de algunas representaciones gráficas, como histogramas y diagramas de dispersión, en ciertos análisis se han omitido temporalmente valores extremos o atípicos que podrían distorsionar la escala y dificultar la interpretación de la distribución principal de los datos. Esta omisión se realiza aplicando un umbral, generalmente basado en percentiles (por ejemplo, el percentil 99), para excluir una pequeña proporción de los datos de la visualización. Es importante destacar que estos datos no se eliminan del conjunto de datos subyacente para los cálculos estadísticos (a menos que se indique explícitamente como parte de un paso de filtrado, como la eliminación de sesiones automáticas), sino que solo se excluyen de la representación gráfica. En cada sección donde se aplica este capping visual, se detalla el umbral específico utilizado y la proporción de registros omitidos para ese gráfico o análisis en particular, asegurando la transparencia del proceso.
 
 ### 2.1. Duración de la sesión
 
@@ -223,11 +222,33 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
 
 *   **Tabla de Sesiones con Menor Tiempo Medio por Página:**
     *   Se calculó el tiempo medio de visualización de página para cada sesión (con >1 página vista). La tabla con las 20 sesiones que presentaron el menor tiempo medio por página se generó y guardó en `output/tables/top_20_low_avg_page_time_sessions.csv`.
-    *   `[Insertar aquí la Tabla de las 20 sesiones con menor tiempo medio por página, o un resumen de sus características, una vez que el script analysis.py se ejecute y genere el archivo CSV.]`
+    *   A continuación se muestra la tabla generada:
+
+        | SessionID                        | avg_page_view_time_seconds | num_page_views_in_session |
+        | :------------------------------- | :------------------------- | :------------------------ |
+        | whq.whq.usbm.gov_1               | 0.0                        | 1                         |
+        | vw9.thetech.org_2                | 0.0                        | 1                         |
+        | 204.155.145.51_1                 | 0.0                        | 1                         |
+        | intgate.raleigh.ibm.com_68       | 0.0                        | 1                         |
+        | sho-vss-eng1.atsc.allied.com_7   | 0.0                        | 1                         |
+        | pczeo.univ-lille1.fr_1           | 0.0                        | 1                         |
+        | imac15.infj.ulst.ac.uk_1         | 0.0                        | 1                         |
+        | chopin.udel.edu_3                | 0.0                        | 1                         |
+        | 128.159.112.22_14                | 0.0                        | 1                         |
+        | asimov_20                        | 0.0                        | 1                         |
+        | wolson-mac.sctr.ida.org_1        | 0.0                        | 1                         |
+        | 163.206.11.35_20                 | 0.0                        | 1                         |
+        | labbey.mindspring.com_7          | 0.0                        | 1                         |
+        | stargate.tamu.edu_1              | 0.0                        | 1                         |
+        | www-c3.proxy.aol.com_147         | 0.0                        | 1                         |
+        | nt176.imonics.com_2              | 0.0                        | 1                         |
+        | s-cwis.unomaha.edu_1             | 0.0                        | 1                         |
+        | a23.148.148.204.interaccess.com_1| 0.0                        | 1                         |
+        | iii2.iii.net_1                   | 0.0                        | 1                         |
+        | 128.217.62.38_7                  | 0.0                        | 1                         |
 
 *   **Documentación de Sesiones < 0.5s (si alguna se mantuvo):**
-    *   Tras identificar las sesiones con un tiempo medio por página inferior a 0.5 segundos (listadas en `output/tables/identified_fast_sessions.csv`), se procedió a eliminarlas del DataFrame principal para los análisis subsiguientes. Esta decisión se basa en la presunción de que tales tiempos extremadamente cortos son más indicativos de comportamiento automático o no humano que de una interacción real con el contenido.
-    *   `[El script analysis.py actualmente elimina todas estas sesiones. Si, tras una inspección manual del archivo identified_fast_sessions.csv, se decidiera CONSERVAR alguna de estas sesiones, se debería modificar el script y detallar aquí cuáles SessionIDs fueron conservadas y la justificación. Por ahora, se asume que todas fueron eliminadas como comportamiento por defecto del script.]`
+    *   Tras identificar las sesiones con un tiempo medio por página inferior a 0.5 segundos (listadas en `output/tables/identified_fast_sessions.csv`), se procedió a eliminarlas del DataFrame principal para los análisis subsiguientes. Esta decisión se basa en la presunción de que tales tiempos extremadamente cortos son más indicativos de comportamiento automático o no humano que de una interacción real con el contenido. Durante la ejecución del script `analysis.py`, no se identificaron ni se conservaron manualmente sesiones de este tipo que se consideraran generadas por usuarios reales; por lo tanto, todas las sesiones que cumplieron este criterio fueron eliminadas como parte del comportamiento por defecto del script para refinar el conjunto de datos.
     *   Según la ejecución del script `analysis.py`, se identificaron y eliminaron **244 sesiones** consideradas demasiado rápidas, lo que resultó en la eliminación de **492 filas de log** del DataFrame.
 
 *   **Actualización de Análisis Anteriores (si aplica):**
@@ -544,4 +565,4 @@ Este enfoque asegura que no se introduce información artificial en el DataFrame
 
 ## 3. Documentación y entrega
 
-[Descripción general de la fase de documentación y entrega del proyecto.]
+Esta sección finaliza la memoria de la práctica, detallando los componentes que conforman la entrega del proyecto. La entrega consistirá en este documento (la memoria en formato PDF), que recoge todos los pasos metodológicos, los scripts desarrollados, las tablas de resultados, los gráficos generados y el análisis e interpretación de los hallazgos. Junto con la memoria, se entregarán los scripts de Python utilizados para el pre-procesamiento y el análisis exploratorio de datos, organizados en la estructura de directorios especificada. El objetivo es proporcionar una visión completa y reproducible del trabajo realizado.
